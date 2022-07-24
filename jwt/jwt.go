@@ -68,16 +68,24 @@ func (jwt *Jwt) generateToken(typ string, exp int, uid uint, key *string, iss st
 	return token.SignedString(jwt.v)
 }
 
-func (jwt *Jwt) AccessToken(uid uint, iss string) (string, error) {
-	return jwt.generateToken("access", jwt.a, uid, nil, iss)
+func (jwt *Jwt) AccessToken(uid uint, iss string) (*string, error) {
+	tk, err := jwt.generateToken("access", jwt.r, uid, nil, iss)
+	if err != nil {
+		return nil, fmt.Errorf("Jwt : %w", err)
+	}
+	return &tk, nil
 }
 
-func (jwt *Jwt) RefreshToken(uid uint, iss string) (string, error) {
+func (jwt *Jwt) RefreshToken(uid uint, iss string) (*string, *string, error) {
 	t := time.Unix(time.Now().UnixNano(), 0).String()
 	s := strconv.FormatUint(uint64(uid), 10) + t
 	k := hmac.New(sha256.New, []byte(s))
 	hk := hex.EncodeToString(k.Sum(nil))
-	return jwt.generateToken("refresh", jwt.r, uid, &hk, iss)
+	tk, err := jwt.generateToken("refresh", jwt.r, uid, &hk, iss)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Jwt : %w", err)
+	}
+	return &tk, &hk, nil
 }
 
 func (jwt *Jwt) Validate(t string) (*TokenClaims, error) {
@@ -94,10 +102,10 @@ func (jwt *Jwt) Validate(t string) (*TokenClaims, error) {
 
 	claims, ok := token.Claims.(*TokenClaims)
 	if !ok || !token.Valid || claims.UID == 0 {
-		return nil, fmt.Errorf("invalid token: authentication failed")
+		return nil, fmt.Errorf("invalid token or missing uid")
 	}
 	if claims.Type == "refresh" && claims.Key == nil {
-		return nil, fmt.Errorf("invalid token: authentication failed")
+		return nil, fmt.Errorf("invalid token or missing key")
 	}
 	return claims, nil
 }

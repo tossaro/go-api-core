@@ -1,9 +1,13 @@
 package jwt
 
 import (
+	"crypto/hmac"
 	"crypto/rsa"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"strconv"
 	"time"
 
 	j "github.com/golang-jwt/jwt/v4"
@@ -20,6 +24,7 @@ type (
 	TokenClaims struct {
 		UID  uint
 		Type string
+		Key  *string
 		j.RegisteredClaims
 	}
 )
@@ -48,13 +53,15 @@ func New(a int, r int) (*Jwt, error) {
 	return &Jwt{vk, ck, a, r}, nil
 }
 
-func (jwt *Jwt) generateToken(typ string, exp int, uid uint, iss string) (string, error) {
+func (jwt *Jwt) generateToken(typ string, exp int, uid uint, key *string, iss string) (string, error) {
 	c := TokenClaims{
 		uid,
 		typ,
+		key,
 		j.RegisteredClaims{
-			ExpiresAt: j.NewNumericDate(time.Now().Add(time.Minute * time.Duration(jwt.a))),
 			Issuer:    iss,
+			IssuedAt:  j.NewNumericDate(time.Now()),
+			ExpiresAt: j.NewNumericDate(time.Now().Add(time.Minute * time.Duration(jwt.a))),
 		},
 	}
 	token := j.NewWithClaims(j.SigningMethodRS256, c)
@@ -62,14 +69,18 @@ func (jwt *Jwt) generateToken(typ string, exp int, uid uint, iss string) (string
 }
 
 func (jwt *Jwt) AccessToken(uid uint, iss string) (string, error) {
-	return jwt.generateToken("access", jwt.a, uid, iss)
+	return jwt.generateToken("access", jwt.a, uid, nil, iss)
 }
 
 func (jwt *Jwt) RefreshToken(uid uint, iss string) (string, error) {
-	return jwt.generateToken("refresh", jwt.r, uid, iss)
+	t := time.Unix(time.Now().UnixNano(), 0).String()
+	s := strconv.FormatUint(uint64(uid), 10) + t
+	k := hmac.New(sha256.New, []byte(s))
+	hk := hex.EncodeToString(k.Sum(nil))
+	return jwt.generateToken("refresh", jwt.r, uid, &hk, iss)
 }
 
-func (jwt *Jwt) Validate(t string) (*uint, error) {
+func (jwt *Jwt) Validate(t string) (*TokenClaims, error) {
 	token, err := j.ParseWithClaims(t, &TokenClaims{}, func(token *j.Token) (interface{}, error) {
 		if _, ok := token.Method.(*j.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method in auth token")
@@ -82,8 +93,11 @@ func (jwt *Jwt) Validate(t string) (*uint, error) {
 	}
 
 	claims, ok := token.Claims.(*TokenClaims)
-	if !ok || !token.Valid || claims.UID == 0 || claims.Type != "access" {
+	if !ok || !token.Valid || claims.UID == 0 {
 		return nil, fmt.Errorf("invalid token: authentication failed")
 	}
-	return &claims.UID, nil
+	if claims.Type == "refresh" && claims.Key != nil {
+		return nil, fmt.Errorf("invalid token: authentication failed")
+	}
+	return claims, nil
 }

@@ -18,7 +18,7 @@ func New(g *gin.Gin) {
 	h := g.R.Group("/captcha/v1")
 	{
 		h.GET("/generate", a.captchaGenerateV1)
-		h.GET("/image/:id", a.captchaImage)
+		h.GET("/image/:id", a.captchaImageV1)
 	}
 }
 
@@ -29,9 +29,8 @@ func New(g *gin.Gin) {
 // @Accept      json
 // @Produce     json
 // @Param		x-platform-lang header string true "Client Platform Lang" Enums(EN,ID)
-// @Success     200 {string} 123456
-// @Failure     204 {object} gin.Error
-// @Failure     500 {object} gin.Error
+// @Param		x-request-key header string true "Request Key"
+// @Success     200 {string} 1a2b3c4d5e
 // @Router      /captcha/v1/generate [get]
 func (a *httpV1) captchaGenerateV1(c *g.Context) {
 	c.JSON(http.StatusOK, captcha.NewLen(6))
@@ -39,27 +38,28 @@ func (a *httpV1) captchaGenerateV1(c *g.Context) {
 
 // @Summary     Show Captcha Image
 // @Description Show Captcha Image to Secure
-// @ID          captchaImage
+// @ID          captchaImageV1
 // @Tags  	    captcha
 // @Accept      json
 // @Produce     json
 // @Param		x-platform-lang header string true "Client Platform Lang" Enums(EN,ID)
+// @Param		x-request-key header string true "Request Key"
 // @Param		id path string true "Captcha ID"
 // @Success     200 "Show Captcha Image"
 // @Failure     204 {object} gin.Error
-// @Failure     500 {object} gin.Error
+// @Failure     400 {object} gin.Error
 // @Router      /captcha/v1/image/{id} [get]
-func (a *httpV1) captchaImage(c *g.Context) {
+func (a *httpV1) captchaImageV1(c *g.Context) {
 	id := c.Param("id")
 	if id == "" {
 		err := captcha.ErrNotFound
-		a.g.ErrorResponse(c, http.StatusBadRequest, "captha error", "http-captchaImage", err)
+		a.g.ErrorResponse(c, http.StatusBadRequest, "captha error", "http-captchaImageV1", err)
 		return
 	}
 	c.Set("Content-Type", "image/png")
 	err := captcha.WriteImage(c.Writer, id, 120, 80)
 	if err != nil {
-		a.g.ErrorResponse(c, http.StatusBadRequest, "captha error", "http-captchaImage", err)
+		a.g.ErrorResponse(c, http.StatusBadRequest, "captha error", "http-captchaImageV1", err)
 		return
 	}
 }

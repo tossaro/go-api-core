@@ -96,7 +96,7 @@ func (jwt *Jwt) Validate(t string) (*TokenClaims, error) {
 	if !ok || !token.Valid || claims.UID == 0 {
 		return nil, fmt.Errorf("invalid token: authentication failed")
 	}
-	if claims.Type == "refresh" && claims.Key != nil {
+	if claims.Type == "refresh" && claims.Key == nil {
 		return nil, fmt.Errorf("invalid token: authentication failed")
 	}
 	return claims, nil

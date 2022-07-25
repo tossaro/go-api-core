@@ -52,6 +52,7 @@ func main() {
 	}
 	l.Info("app - twilio initialized")
 
+	cap := true
 	g := gin.New(&gin.Options{
 		Mode:         cfg.HTTP.Mode,
 		Version:      cfg.App.Version,
@@ -60,6 +61,7 @@ func main() {
 		Redis:        rdb,
 		AccessToken:  cfg.TOKEN.Access,
 		RefreshToken: cfg.TOKEN.Refresh,
+		Captcha:      &cap,
 	})
 
 	httpServer := httpserver.New(g.E, &httpserver.Options{

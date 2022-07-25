@@ -13,6 +13,7 @@ import (
 	prm "github.com/prometheus/client_golang/prometheus/promhttp"
 	sf "github.com/swaggo/files"
 	gsw "github.com/swaggo/gin-swagger"
+	"github.com/tossaro/go-api-core/captcha"
 	"github.com/tossaro/go-api-core/jwt"
 	"github.com/tossaro/go-api-core/logger"
 )
@@ -41,6 +42,7 @@ type (
 		Redis        *redis.Client
 		AccessToken  int
 		RefreshToken int
+		Captcha      *bool
 	}
 
 	TokenV1 struct {
@@ -67,7 +69,12 @@ func New(opts *Options) *Gin {
 		r.GET("/version", ge.version)
 		r.GET("/metrics", g.WrapH(prm.Handler()))
 		r.GET("/swagger/*any", gsw.DisablingWrapHandler(sf.Handler, "HTTP_SWAGGER_DISABLED"))
+
+		if opts.Captcha != nil && *(opts.Captcha) {
+			captcha.New(r, opts.Logger)
+		}
 	}
+
 	r.Use(headerCheck(ge))
 	ge.R = r
 	return ge

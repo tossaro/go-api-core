@@ -9,6 +9,72 @@
     "host": "localhost:8080",
     "basePath": "/go-api-core",
     "paths": {
+        "/captcha/v1/generate": {
+            "get": {
+                "description": "Show Captcha Image to Secure",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Captcha"
+                ],
+                "summary": "Generate Captcha",
+                "operationId": "captchaGenerateV1",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/captcha/v1/image/{id}": {
+            "get": {
+                "description": "Show Captcha Image to Secure",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Captcha"
+                ],
+                "summary": "Show Captcha Image",
+                "operationId": "captchaImageV1",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Captcha ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Show Captcha Image"
+                    },
+                    "204": {
+                        "description": "No Content",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/version": {
             "get": {
                 "description": "Get Version",

@@ -6,6 +6,50 @@ info:
   title: API Core
   version: 1.0.0
 paths:
+  /captcha/v1/generate:
+    get:
+      consumes:
+      - application/json
+      description: Show Captcha Image to Secure
+      operationId: captchaGenerateV1
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Generate Captcha
+      tags:
+      - Captcha
+  /captcha/v1/image/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Show Captcha Image to Secure
+      operationId: captchaImageV1
+      parameters:
+      - description: Captcha ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Show Captcha Image
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+      summary: Show Captcha Image
+      tags:
+      - Captcha
   /version:
     get:
       consumes:

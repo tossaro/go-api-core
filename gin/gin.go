@@ -32,30 +32,40 @@ type (
 		j *jwt.Jwt
 	}
 
+	Options struct {
+		Mode         string
+		Version      string
+		BaseUrl      string
+		Logger       logger.Interface
+		Redis        *redis.Client
+		AccessToken  int
+		RefreshToken int
+	}
+
 	TokenV1 struct {
 		Access  string `json:"access"`
 		Refresh string `json:"refresh"`
 	}
 )
 
-func New(m string, v string, b string, l logger.Interface, rdb *redis.Client, at int, rt int) *Gin {
-	g.SetMode(m)
+func New(opts *Options) *Gin {
+	g.SetMode(opts.Mode)
 	gi := g.New()
 	gi.Use(g.Logger())
 	gi.Use(g.Recovery())
 
-	j, err := jwt.New(at, rt)
+	j, err := jwt.New(opts.AccessToken, opts.RefreshToken)
 	if err != nil {
 		log.Fatalf("JWT error: %s", err)
 	}
 
-	ge := &Gin{l, gi, nil, rdb, j}
+	ge := &Gin{opts.Logger, gi, nil, opts.Redis, j}
 
 	sw := gsw.DisablingWrapHandler(sf.Handler, "HTTP_SWAGGER")
-	r := gi.Group(b)
+	r := gi.Group(opts.BaseUrl)
 	{
 		r.GET("/swagger/*any", sw)
-		r.GET("/version", func(c *g.Context) { c.JSON(http.StatusOK, v) })
+		r.GET("/version", func(c *g.Context) { c.JSON(http.StatusOK, opts.Version) })
 		r.GET("/metrics", g.WrapH(prm.Handler()))
 	}
 	r.Use(headerCheck(ge))

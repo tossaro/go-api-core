@@ -4,8 +4,8 @@ Based on common API stack, here is a list of enhanced packages to simplify your 
 
 ## Contents
  - [Getting started](#getting-started)
- - [Packages](#packages)
- - [Example](https://github.com/tossaro/go-api-core/example)
+ - [Enhanced Packages](#enhanced-packages)
+ - [Example](https://github.com/tossaro/go-api-core/tree/main/example)
 
 ## Getting started
 
@@ -14,7 +14,7 @@ Based on common API stack, here is a list of enhanced packages to simplify your 
     $ go get -u github.com/tossaro/go-api-core
 ```
 
-2. Add file `.env` on your `main.go` folder, see [.env](https://github.com/tossaro/go-api-core/example/.env)
+2. Add file `.env` on your `main.go` folder, see [.env](https://github.com/tossaro/go-api-core/blob/main/example/.env)
 
 3. Import the following package:
 ```go
@@ -45,11 +45,38 @@ Based on common API stack, here is a list of enhanced packages to simplify your 
     })
 ```
 
-## Packages
-- [gin](https://github.com/tossaro/go-api-core/gin)
-- [httpserver](https://github.com/tossaro/go-api-core/httpserver)
-- [jwt](https://github.com/tossaro/go-api-core/jwt)
-- [logger](https://github.com/tossaro/go-api-core/logger)
-- [postgres](https://github.com/tossaro/go-api-core/postgres)
-- [twilio](https://github.com/tossaro/go-api-core/twilio)
-- [captcha](https://github.com/tossaro/go-api-core/captcha)
+## Enhanced Packages
+- [Gin](https://github.com/tossaro/go-api-core/blob/main/gin/gin.go)
+- [HTTP Server](https://github.com/tossaro/go-api-core/blob/main/httpserver/server.go)
+- [JWT RSA](https://github.com/tossaro/go-api-core/blob/main/jwt/jwt.go)
+- [Logger](https://github.com/tossaro/go-api-core/blob/main/logger/logger.go)
+- [Postgres](https://github.com/tossaro/go-api-core/blob/main/postgres/postgres.go)
+- [Twilio](https://github.com/tossaro/go-api-core/blob/main/twilio/twilio.go)
+- [Captcha](https://github.com/tossaro/go-api-core/blob/main/captcha/http.go)
+
+## License
+
+### The MIT License (MIT)
+
+Copyright © `2022` `Hamzah Tossaro`
+
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documentation
+files (the “Software”), to deal in the Software without
+restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.

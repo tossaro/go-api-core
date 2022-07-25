@@ -1,4 +1,4 @@
-# API Core
+# Go API Core [![Go Report Card](https://goreportcard.com/badge/github.com/tossaro/go-api-core)](https://goreportcard.com/report/github.com/tossaro/go-api-core)
 
 Based on common API stack, here is a list of enhanced packages to simplify your go (or 'golang') API development.
 

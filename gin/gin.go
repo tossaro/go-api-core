@@ -38,7 +38,8 @@ type (
 	}
 )
 
-func New(b string, l logger.Interface, rdb *redis.Client, at int, rt int) *Gin {
+func New(m string, v string, b string, l logger.Interface, rdb *redis.Client, at int, rt int) *Gin {
+	g.SetMode(m)
 	gi := g.New()
 	gi.Use(g.Logger())
 	gi.Use(g.Recovery())
@@ -50,11 +51,11 @@ func New(b string, l logger.Interface, rdb *redis.Client, at int, rt int) *Gin {
 
 	ge := &Gin{l, gi, nil, rdb, j}
 
-	sw := gsw.DisablingWrapHandler(sf.Handler, "DISABLE_SWAGGER_HTTP_HANDLER")
+	sw := gsw.DisablingWrapHandler(sf.Handler, "HTTP_SWAGGER")
 	r := gi.Group(b)
 	{
 		r.GET("/swagger/*any", sw)
-		r.GET("/healthz", func(c *g.Context) { c.Status(http.StatusOK) })
+		r.GET("/version", func(c *g.Context) { c.JSON(http.StatusOK, v) })
 		r.GET("/metrics", g.WrapH(prm.Handler()))
 	}
 	r.Use(headerCheck(ge))

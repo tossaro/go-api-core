@@ -30,6 +30,7 @@ type (
 		R *g.RouterGroup
 		r *redis.Client
 		j *jwt.Jwt
+		v string
 	}
 
 	Options struct {
@@ -56,17 +57,16 @@ func New(opts *Options) *Gin {
 
 	j, err := jwt.New(opts.AccessToken, opts.RefreshToken)
 	if err != nil {
-		log.Fatalf("JWT error: %s", err)
+		log.Printf("JWT error: %s", err)
 	}
 
-	ge := &Gin{opts.Logger, gi, nil, opts.Redis, j}
+	ge := &Gin{opts.Logger, gi, nil, opts.Redis, j, opts.Version}
 
-	sw := gsw.DisablingWrapHandler(sf.Handler, "HTTP_SWAGGER")
 	r := gi.Group(opts.BaseUrl)
 	{
-		r.GET("/swagger/*any", sw)
-		r.GET("/version", func(c *g.Context) { c.JSON(http.StatusOK, opts.Version) })
+		r.GET("/version", ge.version)
 		r.GET("/metrics", g.WrapH(prm.Handler()))
+		r.GET("/swagger/*any", gsw.DisablingWrapHandler(sf.Handler, "HTTP_SWAGGER_DISABLED"))
 	}
 	r.Use(headerCheck(ge))
 	ge.R = r
@@ -87,6 +87,18 @@ func headerCheck(ge *Gin) g.HandlerFunc {
 			return
 		}
 	}
+}
+
+// @Summary     Get Version
+// @Description Get Version
+// @ID          version
+// @Tags  	    API
+// @Accept      json
+// @Produce     json
+// @Success     200 {string} v1.0.0
+// @Router      /version [get]
+func (ge *Gin) version(c *g.Context) {
+	c.JSON(http.StatusOK, ge.v)
 }
 
 func (ge *Gin) ErrorResponse(c *g.Context, code int, msg string, iss string, err error) {

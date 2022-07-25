@@ -3,27 +3,27 @@ package postgres
 import (
 	"errors"
 	"log"
-	"os"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
-	// migrate tools
+	core "github.com/tossaro/go-api-core"
+
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 const (
-	_defaultAttempts = 20
+	_defaultAttempts = 10
 	_defaultTimeout  = time.Second
 )
 
 func init() {
-	databaseURL, ok := os.LookupEnv("PG_URL")
-	if !ok || len(databaseURL) == 0 {
-		log.Fatalf("migrate: environment variable not declared: PG_URL")
+	cfg, e := core.NewConfig()
+	if e != nil {
+		log.Printf("Config error: %s", e)
 	}
 
-	databaseURL += "?sslmode=disable"
+	cfg.Postgre.Url += "?sslmode=disable"
 
 	var (
 		attempts = _defaultAttempts
@@ -32,24 +32,26 @@ func init() {
 	)
 
 	for attempts > 0 {
-		m, err = migrate.New("file://migrations", databaseURL)
+		m, err = migrate.New("file://migrations", cfg.Postgre.Url)
 		if err == nil {
 			break
 		}
 
-		log.Printf("Migrate: postgres is trying to connect, attempts left: %d", attempts)
+		log.Printf("Migrate: trying to connect / read file, attempts left: %d", attempts)
 		time.Sleep(_defaultTimeout)
 		attempts--
 	}
 
 	if err != nil {
-		log.Fatalf("Migrate: postgres connect error: %s", err)
+		log.Printf("Migrate: error: %s", err)
+		return
 	}
 
 	err = m.Up()
 	defer m.Close()
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		log.Fatalf("Migrate: up error: %s", err)
+		log.Printf("Migrate: up error: %s", err)
+		return
 	}
 
 	if errors.Is(err, migrate.ErrNoChange) {

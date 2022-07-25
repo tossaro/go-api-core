@@ -13,28 +13,46 @@ const (
 	_defaultShutdownTimeout = 3 * time.Second
 )
 
-type Server struct {
-	server          *http.Server
-	notify          chan error
-	shutdownTimeout time.Duration
-}
+type (
+	Options struct {
+		Port            *string
+		ReadTimeout     *time.Duration
+		WriteTimeout    *time.Duration
+		ShutDownTimeout *time.Duration
+	}
 
-func New(handler http.Handler, opts ...Option) *Server {
+	Server struct {
+		server          *http.Server
+		notify          chan error
+		shutdownTimeout time.Duration
+	}
+)
+
+func New(handler http.Handler, opts *Options) *Server {
+	rT := _defaultReadTimeout
+	if opts.ReadTimeout != nil {
+		rT = *(opts.ReadTimeout)
+	}
+	wT := _defaultWriteTimeout
+	if opts.WriteTimeout != nil {
+		wT = *(opts.WriteTimeout)
+	}
+	a := _defaultAddr
+	if opts.Port != nil {
+		a = ":" + *(opts.Port)
+	}
+
 	httpServer := &http.Server{
 		Handler:      handler,
-		ReadTimeout:  _defaultReadTimeout,
-		WriteTimeout: _defaultWriteTimeout,
-		Addr:         _defaultAddr,
+		ReadTimeout:  rT,
+		WriteTimeout: wT,
+		Addr:         a,
 	}
 
 	s := &Server{
 		server:          httpServer,
 		notify:          make(chan error, 1),
 		shutdownTimeout: _defaultShutdownTimeout,
-	}
-
-	for _, opt := range opts {
-		opt(s)
 	}
 
 	s.start()

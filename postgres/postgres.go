@@ -10,55 +10,62 @@ import (
 )
 
 const (
-	_defaultMaxPoolSize  = 1
+	_defaultPoolMax      = 1
 	_defaultConnAttempts = 10
 	_defaultConnTimeout  = time.Second
 )
 
-type Postgres struct {
-	maxPoolSize  int
-	connAttempts int
-	connTimeout  time.Duration
-
-	Pool *pgxpool.Pool
-}
-
-func New(url string, opts ...Option) (*Postgres, error) {
-	pg := &Postgres{
-		maxPoolSize:  _defaultMaxPoolSize,
-		connAttempts: _defaultConnAttempts,
-		connTimeout:  _defaultConnTimeout,
+type (
+	Options struct {
+		Url          string
+		PoolMax      *int
+		ConnAttempts *int
+		ConnTimeout  *time.Duration
 	}
 
-	for _, opt := range opts {
-		opt(pg)
+	Postgres struct {
+		Pool *pgxpool.Pool
 	}
+)
 
-	poolConfig, err := pgxpool.ParseConfig(url)
+func New(opts *Options) (*Postgres, error) {
+	poolConfig, err := pgxpool.ParseConfig(opts.Url)
 	if err != nil {
-		return nil, fmt.Errorf("postgres - NewPostgres - pgxpool.ParseConfig: %w", err)
+		return nil, fmt.Errorf("postgres - pgxpool.ParseConfig: %w", err)
 	}
 
-	poolConfig.MaxConns = int32(pg.maxPoolSize)
+	pMax := _defaultPoolMax
+	if opts.PoolMax != nil {
+		pMax = *(opts.PoolMax)
+	}
+	poolConfig.MaxConns = int32(pMax)
 
-	for pg.connAttempts > 0 {
-		pg.Pool, err = pgxpool.ConnectConfig(context.Background(), poolConfig)
+	cAt := _defaultConnAttempts
+	if opts.ConnAttempts != nil {
+		cAt = *(opts.ConnAttempts)
+	}
+
+	cTm := _defaultConnTimeout
+	if opts.ConnTimeout != nil {
+		cTm = *(opts.ConnTimeout)
+	}
+
+	var p *pgxpool.Pool
+	for cAt > 0 {
+		p, err = pgxpool.ConnectConfig(context.Background(), poolConfig)
 		if err == nil {
 			break
 		}
-
-		log.Printf("Postgres is trying to connect, attempts left: %d", pg.connAttempts)
-
-		time.Sleep(pg.connTimeout)
-
-		pg.connAttempts--
+		log.Printf("Postgres is trying to connect, attempts left: %d", cAt)
+		time.Sleep(cTm)
+		cAt--
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("postgres - NewPostgres - connAttempts == 0: %w", err)
+		return nil, fmt.Errorf("postgres - connection failed: %w", err)
 	}
 
-	return pg, nil
+	return &Postgres{p}, nil
 }
 
 func (p *Postgres) Close() {

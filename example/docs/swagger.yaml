@@ -1,0 +1,25 @@
+basePath: /go-api-core
+host: localhost:8080
+info:
+  contact: {}
+  description: API Core
+  title: API Core
+  version: 1.0.0
+paths:
+  /version:
+    get:
+      consumes:
+      - application/json
+      description: Get Version
+      operationId: version
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Get Version
+      tags:
+      - API
+swagger: "2.0"

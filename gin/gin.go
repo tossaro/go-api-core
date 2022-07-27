@@ -33,7 +33,7 @@ type (
 		Gin        *g.Engine
 		Router     *g.RouterGroup
 		Jwt        *j.Jwt
-		AuthClient auth.AuthServiceClient
+		AuthClient *auth.AuthServiceClient
 		*Options
 	}
 
@@ -82,7 +82,7 @@ func New(o *Options) *Gin {
 		authClient = &c
 	}
 
-	gin := &Gin{gEngine, nil, jwt, *authClient, o}
+	gin := &Gin{gEngine, nil, jwt, authClient, o}
 
 	gRouter := gEngine.Group(o.BaseUrl)
 	{
@@ -151,14 +151,21 @@ func (gin *Gin) AuthRefreshMiddleware() g.HandlerFunc {
 
 func (gin *Gin) checkSessionFromService(typ string) g.HandlerFunc {
 	return func(c *g.Context) {
+		if gin.Options.AuthService == nil {
+			gin.ErrorResponse(c, http.StatusUnauthorized, "Authentication Error", "http-auth", nil)
+			return
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
-		a := c.GetHeader("Authorization")
-		sa := strings.Split(a, " ")
-		r, err := gin.AuthClient.Check(ctx, &auth.AuthRequest{Token: sa[1]})
+		ah := c.GetHeader("Authorization")
+		sa := strings.Split(ah, " ")
+		a := *gin.AuthClient
+		r, err := a.Check(ctx, &auth.AuthRequest{Token: sa[1]})
 		if err != nil {
-			log.Fatalf("could not greet: %v", err)
+			gin.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "http-auth", nil)
+			return
 		}
 
 		ctx2 := context.WithValue(c.Request.Context(), CKey("user_id"), r.GetUUID())
@@ -172,8 +179,13 @@ func (gin *Gin) checkSessionFromService(typ string) g.HandlerFunc {
 
 func (gin *Gin) checkSessionFromJwt(typ string) g.HandlerFunc {
 	return func(c *g.Context) {
-		a := c.GetHeader("Authorization")
-		sa := strings.Split(a, " ")
+		if gin.Options.Redis == nil {
+			gin.ErrorResponse(c, http.StatusUnauthorized, "Authentication Error", "http-auth", nil)
+			return
+		}
+
+		ah := c.GetHeader("Authorization")
+		sa := strings.Split(ah, " ")
 		if len(sa) != 2 {
 			gin.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "http-auth", nil)
 			return

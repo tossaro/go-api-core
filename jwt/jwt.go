@@ -15,10 +15,16 @@ import (
 
 type (
 	Jwt struct {
-		v *rsa.PrivateKey
-		c *rsa.PublicKey
-		a int
-		r int
+		PrivateKey *rsa.PrivateKey
+		PublicKey  *rsa.PublicKey
+		Options    *Options
+	}
+
+	Options struct {
+		PrivateKeyPath       string
+		PublicKeyPath        string
+		AccessTokenLifetime  int
+		RefreshTokenLifetime int
 	}
 
 	TokenClaims struct {
@@ -29,8 +35,8 @@ type (
 	}
 )
 
-func New(a int, r int) (*Jwt, error) {
-	vb, err := ioutil.ReadFile("./key_private.pem")
+func NewRSA(o *Options) (*Jwt, error) {
+	vb, err := ioutil.ReadFile(o.PrivateKeyPath)
 	if err != nil {
 		return nil, fmt.Errorf("Jwt : %w", err)
 	}
@@ -40,7 +46,7 @@ func New(a int, r int) (*Jwt, error) {
 		return nil, fmt.Errorf("Jwt : %w", err)
 	}
 
-	cb, err := ioutil.ReadFile("./key_public.pem")
+	cb, err := ioutil.ReadFile(o.PublicKeyPath)
 	if err != nil {
 		return nil, fmt.Errorf("Jwt : %w", err)
 	}
@@ -50,7 +56,7 @@ func New(a int, r int) (*Jwt, error) {
 		return nil, fmt.Errorf("Jwt : %w", err)
 	}
 
-	return &Jwt{vk, ck, a, r}, nil
+	return &Jwt{vk, ck, o}, nil
 }
 
 func (jwt *Jwt) generateToken(typ string, exp int, uid uint64, key *string, iss string) (string, error) {
@@ -61,15 +67,15 @@ func (jwt *Jwt) generateToken(typ string, exp int, uid uint64, key *string, iss 
 		j.RegisteredClaims{
 			Issuer:    iss,
 			IssuedAt:  j.NewNumericDate(time.Now()),
-			ExpiresAt: j.NewNumericDate(time.Now().Add(time.Minute * time.Duration(jwt.a))),
+			ExpiresAt: j.NewNumericDate(time.Now().Add(time.Minute * time.Duration(jwt.Options.AccessTokenLifetime))),
 		},
 	}
 	token := j.NewWithClaims(j.SigningMethodRS256, c)
-	return token.SignedString(jwt.v)
+	return token.SignedString(jwt.PrivateKey)
 }
 
 func (jwt *Jwt) AccessToken(uid uint64, iss string) (*string, error) {
-	tk, err := jwt.generateToken("access", jwt.r, uid, nil, iss)
+	tk, err := jwt.generateToken("access", jwt.Options.RefreshTokenLifetime, uid, nil, iss)
 	if err != nil {
 		return nil, fmt.Errorf("Jwt : %w", err)
 	}
@@ -81,7 +87,7 @@ func (jwt *Jwt) RefreshToken(uid uint64, iss string) (*string, *string, error) {
 	s := strconv.FormatUint(uint64(uid), 10) + t
 	k := hmac.New(sha256.New, []byte(s))
 	hk := hex.EncodeToString(k.Sum(nil))
-	tk, err := jwt.generateToken("refresh", jwt.r, uid, &hk, iss)
+	tk, err := jwt.generateToken("refresh", jwt.Options.RefreshTokenLifetime, uid, &hk, iss)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Jwt : %w", err)
 	}
@@ -93,7 +99,7 @@ func (jwt *Jwt) Validate(t string) (*TokenClaims, error) {
 		if _, ok := token.Method.(*j.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method in auth token")
 		}
-		return jwt.c, nil
+		return jwt.PublicKey, nil
 	})
 
 	if err != nil {

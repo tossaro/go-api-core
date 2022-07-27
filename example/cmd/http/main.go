@@ -53,7 +53,12 @@ func main() {
 	}
 	l.Info("app - twilio initialized")
 
-	jwt, err := j.New(cfg.TOKEN.Access, cfg.TOKEN.Refresh)
+	jwt, err := j.NewRSA(&j.Options{
+		AccessTokenLifetime:  cfg.TOKEN.Access,
+		RefreshTokenLifetime: cfg.TOKEN.Refresh,
+		PrivateKeyPath:       "./../../key_private.pem",
+		PublicKeyPath:        "./../../key_public.pem",
+	})
 	if err != nil {
 		l.Error("JWT error: %s", err)
 	}

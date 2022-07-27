@@ -6,14 +6,14 @@ import (
 	"net"
 
 	core "github.com/tossaro/go-api-core"
-	"github.com/tossaro/go-api-core/grpc/auth"
+	pAuth "github.com/tossaro/go-api-core/auth/proto"
 	"github.com/tossaro/go-api-core/logger"
 	"google.golang.org/grpc"
 )
 
 type (
 	authServer struct {
-		auth.UnimplementedAuthServiceServer
+		pAuth.UnimplementedAuthServiceV1Server
 	}
 )
 
@@ -31,7 +31,8 @@ func main() {
 	}
 
 	s := grpc.NewServer()
-	auth.RegisterAuthServiceServer(s, &authServer{})
+	pAuth.RegisterAuthServiceV1Server(s, &authServer{})
+
 	l.Info("app - grpc listening at %v", conn.Addr())
 	if err := s.Serve(conn); err != nil {
 		l.Error(fmt.Errorf("app - failed serve grpc: %w", err))

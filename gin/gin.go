@@ -14,8 +14,8 @@ import (
 	prm "github.com/prometheus/client_golang/prometheus/promhttp"
 	sf "github.com/swaggo/files"
 	gsw "github.com/swaggo/gin-swagger"
+	pAuth "github.com/tossaro/go-api-core/auth/proto"
 	"github.com/tossaro/go-api-core/captcha"
-	"github.com/tossaro/go-api-core/grpc/auth"
 	j "github.com/tossaro/go-api-core/jwt"
 	"github.com/tossaro/go-api-core/logger"
 	"google.golang.org/grpc"
@@ -33,7 +33,7 @@ type (
 		Gin        *g.Engine
 		Router     *g.RouterGroup
 		Jwt        *j.Jwt
-		AuthClient *auth.AuthServiceClient
+		AuthClient *pAuth.AuthServiceV1Client
 		*Options
 	}
 
@@ -70,7 +70,7 @@ func New(o *Options) *Gin {
 		jwt = jNew
 	}
 
-	var authClient *auth.AuthServiceClient
+	var authClient *pAuth.AuthServiceV1Client
 	if o.AuthService != nil {
 		conn, err := grpc.Dial(*o.AuthService, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
@@ -78,7 +78,7 @@ func New(o *Options) *Gin {
 		}
 		defer conn.Close()
 
-		c := auth.NewAuthServiceClient(conn)
+		c := pAuth.NewAuthServiceV1Client(conn)
 		authClient = &c
 	}
 
@@ -161,14 +161,19 @@ func (gin *Gin) checkSessionFromService(typ string) g.HandlerFunc {
 
 		ah := c.GetHeader("Authorization")
 		sa := strings.Split(ah, " ")
+		if len(sa) != 2 {
+			gin.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "http-auth", nil)
+			return
+		}
+
 		a := *gin.AuthClient
-		r, err := a.Check(ctx, &auth.AuthRequest{Token: sa[1]})
+		r, err := a.CheckV1(ctx, &pAuth.AuthRequestV1{Token: sa[1], Type: typ})
 		if err != nil {
 			gin.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "http-auth", nil)
 			return
 		}
 
-		ctx2 := context.WithValue(c.Request.Context(), CKey("user_id"), r.GetUUID())
+		ctx2 := context.WithValue(c.Request.Context(), CKey("user_id"), r.GetUID())
 		if typ == "refresh" && r.GetKey() != "" {
 			ctx2 = context.WithValue(ctx2, CKey("user_key"), r.GetKey())
 		}

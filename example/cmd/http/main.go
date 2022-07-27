@@ -12,6 +12,7 @@ import (
 	_ "github.com/tossaro/go-api-core/example/docs"
 	"github.com/tossaro/go-api-core/gin"
 	"github.com/tossaro/go-api-core/httpserver"
+	j "github.com/tossaro/go-api-core/jwt"
 	"github.com/tossaro/go-api-core/logger"
 	"github.com/tossaro/go-api-core/postgres"
 	"github.com/tossaro/go-api-core/twilio"
@@ -42,27 +43,33 @@ func main() {
 		Url: cfg.Postgre.Url,
 	})
 	if err != nil {
-		l.Error(fmt.Errorf("app - postgres.New: %w", err))
+		l.Error("app - postgres.New: %w", err)
 	}
 	l.Info("app - postgres initialized")
 
 	_, err = twilio.New(cfg.Twilio.SID, cfg.Twilio.Token, cfg.Twilio.ServiceSID)
 	if err != nil {
-		l.Error(fmt.Errorf("app - twilio.New: %w", err))
+		l.Error("app - twilio.New: %w", err)
 	}
 	l.Info("app - twilio initialized")
 
+	jwt, err := j.New(cfg.TOKEN.Access, cfg.TOKEN.Refresh)
+	if err != nil {
+		l.Error("JWT error: %s", err)
+	}
+
 	cap := true
-	grpcUrl := ":" + cfg.GRPC.Port
+	// grpcUrl := ":" + cfg.GRPC.Port
 	g := gin.New(&gin.Options{
 		Mode:    cfg.HTTP.Mode,
 		Version: cfg.App.Version,
 		BaseUrl: cfg.App.Name,
 		Logger:  l,
-		// if session from redis
-		// Redis:        rdb,
+		// if session from redis enable redis & jwt
+		Redis: rdb,
+		Jwt:   jwt,
 		// if session from another grpc service
-		AuthService:  &grpcUrl,
+		// AuthService:  &grpcUrl,
 		AccessToken:  cfg.TOKEN.Access,
 		RefreshToken: cfg.TOKEN.Refresh,
 		Captcha:      &cap,

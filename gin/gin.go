@@ -44,6 +44,7 @@ type (
 		Logger       logger.Interface
 		AuthService  *string
 		Redis        *redis.Client
+		Jwt          *j.Jwt
 		AccessToken  int
 		RefreshToken int
 		Captcha      *bool
@@ -61,15 +62,6 @@ func New(o *Options) *Gin {
 	gEngine.Use(g.Logger())
 	gEngine.Use(g.Recovery())
 
-	var jwt *j.Jwt
-	if o.Redis != nil {
-		jNew, err := j.New(o.AccessToken, o.RefreshToken)
-		if err != nil {
-			log.Printf("JWT error: %s", err)
-		}
-		jwt = jNew
-	}
-
 	var authClient *pAuth.AuthServiceV1Client
 	if o.AuthService != nil {
 		conn, err := grpc.Dial(*o.AuthService, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -82,7 +74,7 @@ func New(o *Options) *Gin {
 		authClient = &c
 	}
 
-	gin := &Gin{gEngine, nil, jwt, authClient, o}
+	gin := &Gin{gEngine, nil, o.Jwt, authClient, o}
 
 	gRouter := gEngine.Group(o.BaseUrl)
 	{

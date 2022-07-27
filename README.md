@@ -9,6 +9,9 @@ Based on common API stack, here is a list of enhanced packages to simplify your 
 
 ## Getting started
 
+You have an option, you can use core Config or your own config.
+Here if you use core Config:
+
 1. Download core by using:
 ```sh
     $ go get -u github.com/tossaro/go-api-core
@@ -18,31 +21,37 @@ Based on common API stack, here is a list of enhanced packages to simplify your 
 
 3. Import the following package:
 ```go
-    import "github.com/tossaro/go-api-core"
+import core "github.com/tossaro/go-api-core"
 ```
 
 4. Initial the config in `main.go` code:
 ```go
-    func main() {
-        cfg, err := core.NewConfig()
-        if err != nil {
-            log.Fatal("Config error: %s", err)
-        }
-        //...
+func main() {
+    cfg, err := core.NewConfig()
+    if err != nil {
+        log.Fatal("Config error: %s", err)
     }
+    //...
+}
 ```
 
 5. Add every package that you need for your API as example `gin`:
 ```go
-    g := gin.New(&gin.Options{
-        Mode:         cfg.HTTP.Mode,
-        Version:      cfg.App.Version,
-        BaseUrl:      cfg.App.Name,
-        Logger:       l,
-        Redis:        rdb,
-        AccessToken:  cfg.TOKEN.Access,
-        RefreshToken: cfg.TOKEN.Refresh,
-    })
+cap := true
+grpcUrl := ":" + cfg.GRPC.Port
+g := gin.New(&gin.Options{
+    Mode:    cfg.HTTP.Mode,
+    Version: cfg.App.Version,
+    BaseUrl: cfg.App.Name,
+    Logger:  l,
+    // if session from redis
+    // Redis:        rdb,
+    // if session from another grpc service
+    AuthService:  &grpcUrl,
+    AccessToken:  cfg.TOKEN.Access,
+    RefreshToken: cfg.TOKEN.Refresh,
+    Captcha:      &cap,
+})
 ```
 
 ## Enhanced Packages

@@ -23,7 +23,7 @@ import (
 // @host        localhost:8080
 // @BasePath    /go-api-core
 func main() {
-	cfg, err := core.NewConfig()
+	cfg, err := core.NewConfig("./../../.env")
 	if err != nil {
 		log.Printf("Config error: %s", err)
 	}
@@ -53,18 +53,22 @@ func main() {
 	l.Info("app - twilio initialized")
 
 	cap := true
+	grpcUrl := ":" + cfg.GRPC.Port
 	g := gin.New(&gin.Options{
-		Mode:         cfg.HTTP.Mode,
-		Version:      cfg.App.Version,
-		BaseUrl:      cfg.App.Name,
-		Logger:       l,
-		Redis:        rdb,
+		Mode:    cfg.HTTP.Mode,
+		Version: cfg.App.Version,
+		BaseUrl: cfg.App.Name,
+		Logger:  l,
+		// if session from redis
+		// Redis:        rdb,
+		// if session from another grpc service
+		AuthService:  &grpcUrl,
 		AccessToken:  cfg.TOKEN.Access,
 		RefreshToken: cfg.TOKEN.Refresh,
 		Captcha:      &cap,
 	})
 
-	httpServer := httpserver.New(g.E, &httpserver.Options{
+	httpServer := httpserver.New(g.Gin, &httpserver.Options{
 		Port: &cfg.HTTP.Port,
 	})
 

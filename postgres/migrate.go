@@ -5,8 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/golang-migrate/migrate/v4"
-	core "github.com/tossaro/go-api-core"
+	gMigrate "github.com/golang-migrate/migrate/v4"
 
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -17,22 +16,15 @@ const (
 	_defaultTimeout  = time.Second
 )
 
-func init() {
-	cfg, e := core.NewConfig()
-	if e != nil {
-		log.Printf("Config error: %s", e)
-	}
-
-	cfg.Postgre.Url += "?sslmode=disable"
-
+func migrate(url string) {
 	var (
 		attempts = _defaultAttempts
 		err      error
-		m        *migrate.Migrate
+		m        *gMigrate.Migrate
 	)
 
 	for attempts > 0 {
-		m, err = migrate.New("file://migrations", cfg.Postgre.Url)
+		m, err = gMigrate.New("file://migrations", url)
 		if err == nil {
 			break
 		}
@@ -49,12 +41,12 @@ func init() {
 
 	err = m.Up()
 	defer m.Close()
-	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
+	if err != nil && !errors.Is(err, gMigrate.ErrNoChange) {
 		log.Printf("Migrate: up error: %s", err)
 		return
 	}
 
-	if errors.Is(err, migrate.ErrNoChange) {
+	if errors.Is(err, gMigrate.ErrNoChange) {
 		log.Printf("Migrate: no change")
 		return
 	}

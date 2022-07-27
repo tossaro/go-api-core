@@ -22,7 +22,7 @@ type (
 	}
 
 	TokenClaims struct {
-		UID  uint
+		UID  uint64
 		Type string
 		Key  *string
 		j.RegisteredClaims
@@ -53,7 +53,7 @@ func New(a int, r int) (*Jwt, error) {
 	return &Jwt{vk, ck, a, r}, nil
 }
 
-func (jwt *Jwt) generateToken(typ string, exp int, uid uint, key *string, iss string) (string, error) {
+func (jwt *Jwt) generateToken(typ string, exp int, uid uint64, key *string, iss string) (string, error) {
 	c := TokenClaims{
 		uid,
 		typ,
@@ -68,7 +68,7 @@ func (jwt *Jwt) generateToken(typ string, exp int, uid uint, key *string, iss st
 	return token.SignedString(jwt.v)
 }
 
-func (jwt *Jwt) AccessToken(uid uint, iss string) (*string, error) {
+func (jwt *Jwt) AccessToken(uid uint64, iss string) (*string, error) {
 	tk, err := jwt.generateToken("access", jwt.r, uid, nil, iss)
 	if err != nil {
 		return nil, fmt.Errorf("Jwt : %w", err)
@@ -76,7 +76,7 @@ func (jwt *Jwt) AccessToken(uid uint, iss string) (*string, error) {
 	return &tk, nil
 }
 
-func (jwt *Jwt) RefreshToken(uid uint, iss string) (*string, *string, error) {
+func (jwt *Jwt) RefreshToken(uid uint64, iss string) (*string, *string, error) {
 	t := time.Unix(time.Now().UnixNano(), 0).String()
 	s := strconv.FormatUint(uint64(uid), 10) + t
 	k := hmac.New(sha256.New, []byte(s))

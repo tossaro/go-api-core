@@ -1,0 +1,15 @@
+syntax="proto3";
+option go_package = "/auth";
+
+service authService {
+    rpc Check(AuthRequest) returns(AuthResponse);
+}
+
+message AuthRequest {
+    string token = 1;
+}
+
+message AuthResponse {
+    uint64 UUID = 1;
+    string key = 2;
+}

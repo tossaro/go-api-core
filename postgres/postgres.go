@@ -65,6 +65,8 @@ func New(opts *Options) (*Postgres, error) {
 		return nil, fmt.Errorf("postgres - connection failed: %w", err)
 	}
 
+	migrate(opts.Url + "?sslmode=disable")
+
 	return &Postgres{p}, nil
 }
 

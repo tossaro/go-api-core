@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	g "github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
@@ -14,24 +15,26 @@ import (
 	sf "github.com/swaggo/files"
 	gsw "github.com/swaggo/gin-swagger"
 	"github.com/tossaro/go-api-core/captcha"
-	"github.com/tossaro/go-api-core/jwt"
+	"github.com/tossaro/go-api-core/grpc/auth"
+	j "github.com/tossaro/go-api-core/jwt"
 	"github.com/tossaro/go-api-core/logger"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type (
 	CKey string
 
 	Error struct {
-		Msg string `json:"error" example:"message"`
+		Message string `json:"error" example:"message"`
 	}
 
 	Gin struct {
-		L logger.Interface
-		E *g.Engine
-		R *g.RouterGroup
-		r *redis.Client
-		j *jwt.Jwt
-		v string
+		Gin        *g.Engine
+		Router     *g.RouterGroup
+		Jwt        *j.Jwt
+		AuthClient auth.AuthServiceClient
+		*Options
 	}
 
 	Options struct {
@@ -39,6 +42,7 @@ type (
 		Version      string
 		BaseUrl      string
 		Logger       logger.Interface
+		AuthService  *string
 		Redis        *redis.Client
 		AccessToken  int
 		RefreshToken int
@@ -51,46 +55,62 @@ type (
 	}
 )
 
-func New(opts *Options) *Gin {
-	g.SetMode(opts.Mode)
-	gi := g.New()
-	gi.Use(g.Logger())
-	gi.Use(g.Recovery())
+func New(o *Options) *Gin {
+	g.SetMode(o.Mode)
+	gEngine := g.New()
+	gEngine.Use(g.Logger())
+	gEngine.Use(g.Recovery())
 
-	j, err := jwt.New(opts.AccessToken, opts.RefreshToken)
-	if err != nil {
-		log.Printf("JWT error: %s", err)
+	var jwt *j.Jwt
+	if o.Redis != nil {
+		jNew, err := j.New(o.AccessToken, o.RefreshToken)
+		if err != nil {
+			log.Printf("JWT error: %s", err)
+		}
+		jwt = jNew
 	}
 
-	ge := &Gin{opts.Logger, gi, nil, opts.Redis, j, opts.Version}
+	var authClient *auth.AuthServiceClient
+	if o.AuthService != nil {
+		conn, err := grpc.Dial(*o.AuthService, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Printf("GRPC error: %s", err)
+		}
+		defer conn.Close()
 
-	r := gi.Group(opts.BaseUrl)
+		c := auth.NewAuthServiceClient(conn)
+		authClient = &c
+	}
+
+	gin := &Gin{gEngine, nil, jwt, *authClient, o}
+
+	gRouter := gEngine.Group(o.BaseUrl)
 	{
-		r.GET("/version", ge.version)
-		r.GET("/metrics", g.WrapH(prm.Handler()))
-		r.GET("/swagger/*any", gsw.DisablingWrapHandler(sf.Handler, "HTTP_SWAGGER_DISABLED"))
+		gRouter.GET("/version", gin.version)
+		gRouter.GET("/metrics", g.WrapH(prm.Handler()))
+		gRouter.GET("/swagger/*any", gsw.DisablingWrapHandler(sf.Handler, "HTTP_SWAGGER_DISABLED"))
 
-		if opts.Captcha != nil && *(opts.Captcha) {
-			captcha.New(r, opts.Logger)
+		if o.Captcha != nil && *(o.Captcha) {
+			captcha.New(gRouter, o.Logger)
 		}
 	}
 
-	r.Use(headerCheck(ge))
-	ge.R = r
-	return ge
+	gRouter.Use(headerCheck(gin))
+	gin.Router = gRouter
+	return gin
 }
 
-func headerCheck(ge *Gin) g.HandlerFunc {
+func headerCheck(gin *Gin) g.HandlerFunc {
 	return func(c *g.Context) {
 		l := c.GetHeader("x-platform-lang")
 		if l == "" {
-			ge.ErrorResponse(c, http.StatusBadRequest, "missing header param", "http-auth", nil)
+			gin.ErrorResponse(c, http.StatusBadRequest, "missing header param", "http-auth", nil)
 			return
 		}
 
 		p := c.GetHeader("x-request-key")
 		if p == "" {
-			ge.ErrorResponse(c, http.StatusBadRequest, "missing header param", "http-auth", nil)
+			gin.ErrorResponse(c, http.StatusBadRequest, "missing header param", "http-auth", nil)
 			return
 		}
 	}
@@ -104,36 +124,63 @@ func headerCheck(ge *Gin) g.HandlerFunc {
 // @Produce     json
 // @Success     200 {string} v1.0.0
 // @Router      /version [get]
-func (ge *Gin) version(c *g.Context) {
-	c.JSON(http.StatusOK, ge.v)
+func (gin *Gin) version(c *g.Context) {
+	c.JSON(http.StatusOK, gin.Options.Version)
 }
 
-func (ge *Gin) ErrorResponse(c *g.Context, code int, msg string, iss string, err error) {
+func (gin *Gin) ErrorResponse(c *g.Context, code int, msg string, iss string, err error) {
 	if err != nil {
-		ge.L.Error(err, iss)
+		gin.Options.Logger.Error(err, iss)
 	}
 	c.AbortWithStatusJSON(code, &Error{msg})
 }
 
-func (ge *Gin) AuthAccess() g.HandlerFunc {
-	return ge.checkAuth("access")
+func (gin *Gin) AuthAccessMiddleware() g.HandlerFunc {
+	if gin.Options.Redis != nil {
+		return gin.checkSessionFromJwt("access")
+	}
+	return gin.checkSessionFromService("access")
 }
 
-func (ge *Gin) AuthRefresh() g.HandlerFunc {
-	return ge.checkAuth("refresh")
+func (gin *Gin) AuthRefreshMiddleware() g.HandlerFunc {
+	if gin.Options.Redis != nil {
+		return gin.checkSessionFromJwt("refresh")
+	}
+	return gin.checkSessionFromService("refresh")
 }
 
-func (ge *Gin) checkAuth(typ string) g.HandlerFunc {
+func (gin *Gin) checkSessionFromService(typ string) g.HandlerFunc {
+	return func(c *g.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		a := c.GetHeader("Authorization")
+		sa := strings.Split(a, " ")
+		r, err := gin.AuthClient.Check(ctx, &auth.AuthRequest{Token: sa[1]})
+		if err != nil {
+			log.Fatalf("could not greet: %v", err)
+		}
+
+		ctx2 := context.WithValue(c.Request.Context(), CKey("user_id"), r.GetUUID())
+		if typ == "refresh" && r.GetKey() != "" {
+			ctx2 = context.WithValue(ctx2, CKey("user_key"), r.GetKey())
+		}
+		c.Request = c.Request.WithContext(ctx2)
+		c.Next()
+	}
+}
+
+func (gin *Gin) checkSessionFromJwt(typ string) g.HandlerFunc {
 	return func(c *g.Context) {
 		a := c.GetHeader("Authorization")
 		sa := strings.Split(a, " ")
 		if len(sa) != 2 {
-			ge.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "http-auth", nil)
+			gin.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "http-auth", nil)
 			return
 		}
-		claims, err := ge.j.Validate(sa[1])
+		claims, err := gin.Jwt.Validate(sa[1])
 		if err != nil || typ != claims.Type {
-			ge.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "http-auth", err)
+			gin.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "http-auth", err)
 			return
 		}
 
@@ -146,19 +193,19 @@ func (ge *Gin) checkAuth(typ string) g.HandlerFunc {
 	}
 }
 
-func (a *Gin) NewSession(uid uint) (TokenV1, error) {
+func (gin *Gin) CreateSessionJwt(uid uint64, iss string) (TokenV1, error) {
 	var t TokenV1
-	ac, err := a.j.AccessToken(uid, "signin")
+	ac, err := gin.Jwt.AccessToken(uid, iss)
 	if err != nil {
 		return t, err
 	}
 
-	rf, k, err := a.j.RefreshToken(uid, "signin")
+	rf, k, err := gin.Jwt.RefreshToken(uid, iss)
 	if err != nil {
 		return t, err
 	}
 
-	err = a.r.Set(context.Background(), *(k), "0", 0).Err()
+	err = gin.Redis.Set(context.Background(), *(k), "0", 0).Err()
 	if err != nil {
 		return t, err
 	}
@@ -166,15 +213,15 @@ func (a *Gin) NewSession(uid uint) (TokenV1, error) {
 	return TokenV1{Access: *(ac), Refresh: *(rf)}, nil
 }
 
-func (a *Gin) RefreshSession(uid uint, key string, req string) (TokenV1, error) {
+func (gin *Gin) RefreshSessionJwt(uid uint64, key string, req string) (TokenV1, error) {
 	var t TokenV1
-	v, _ := a.r.Get(context.Background(), key).Result()
+	v, _ := gin.Redis.Get(context.Background(), key).Result()
 	if v != "0" && v != req {
 		return t, fmt.Errorf(key)
 	}
 
 	if v == req {
-		nt, err := a.r.Get(context.Background(), key+"_issued").Result()
+		nt, err := gin.Redis.Get(context.Background(), key+"_issued").Result()
 		if err != nil {
 			return t, err
 		}
@@ -187,12 +234,12 @@ func (a *Gin) RefreshSession(uid uint, key string, req string) (TokenV1, error) 
 		return t, nil
 	}
 
-	err := a.r.Set(context.Background(), key, req, 0).Err()
+	err := gin.Redis.Set(context.Background(), key, req, 0).Err()
 	if err != nil {
 		return t, err
 	}
 
-	ses, err := a.NewSession(uid)
+	ses, err := gin.CreateSessionJwt(uid, req)
 	if err != nil {
 		return t, err
 	}
@@ -202,7 +249,7 @@ func (a *Gin) RefreshSession(uid uint, key string, req string) (TokenV1, error) 
 		return t, err
 	}
 
-	err = a.r.Set(context.Background(), key+"_issued", jses, 0).Err()
+	err = gin.Redis.Set(context.Background(), key+"_issued", jses, 0).Err()
 	if err != nil {
 		return t, err
 	}

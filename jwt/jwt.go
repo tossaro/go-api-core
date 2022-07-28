@@ -36,7 +36,7 @@ type (
 	}
 )
 
-func NewRSA(o *Options) (*Jwt, error) {
+func NewRSA(o *Options) *Jwt {
 	if o.PrivateKeyPath == "" {
 		log.Fatal("jwt - option private key path not found")
 	}
@@ -52,25 +52,25 @@ func NewRSA(o *Options) (*Jwt, error) {
 
 	vb, err := ioutil.ReadFile(o.PrivateKeyPath)
 	if err != nil {
-		return nil, err
+		log.Fatal("jwt - read private key error: %w", err)
 	}
 
 	vk, err := j.ParseRSAPrivateKeyFromPEM(vb)
 	if err != nil {
-		return nil, err
+		log.Fatal("jwt - parse private key error: %w", err)
 	}
 
 	cb, err := ioutil.ReadFile(o.PublicKeyPath)
 	if err != nil {
-		return nil, err
+		log.Fatal("jwt - read public key error:", err)
 	}
 
 	ck, err := j.ParseRSAPublicKeyFromPEM(cb)
 	if err != nil {
-		return nil, err
+		log.Fatal("jwt - parse public key error: %w", err)
 	}
 
-	return &Jwt{vk, ck, o}, nil
+	return &Jwt{vk, ck, o}
 }
 
 func (jwt *Jwt) generateToken(typ string, exp int, uid uint64, key *string, iss string) (string, error) {

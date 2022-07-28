@@ -54,15 +54,12 @@ func main() {
 	_ = twilio.New(twSID, twToken, twServiceSID)
 	log.Info("app - twilio initialized")
 
-	jwt, err := j.NewRSA(&j.Options{
+	jwt := j.NewRSA(&j.Options{
 		AccessTokenLifetime:  cfg.TOKEN.Access,
 		RefreshTokenLifetime: cfg.TOKEN.Refresh,
 		PrivateKeyPath:       "./key_private.pem",
 		PublicKeyPath:        "./key_public.pem",
 	})
-	if err != nil {
-		log.Error("app - jwt error: %s", err)
-	}
 
 	cap := true
 	// grpcUrl := ":" + cfg.GRPC.Port
@@ -89,6 +86,7 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
+	var err error
 	select {
 	case s := <-interrupt:
 		log.Info("app - signal: " + s.String())

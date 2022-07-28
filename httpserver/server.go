@@ -28,18 +28,18 @@ type (
 	}
 )
 
-func New(handler http.Handler, opts *Options) *Server {
+func New(handler http.Handler, o *Options) *Server {
 	rT := _defaultReadTimeout
-	if opts.ReadTimeout != nil {
-		rT = *(opts.ReadTimeout)
+	if o.ReadTimeout != nil {
+		rT = *(o.ReadTimeout)
 	}
 	wT := _defaultWriteTimeout
-	if opts.WriteTimeout != nil {
-		wT = *(opts.WriteTimeout)
+	if o.WriteTimeout != nil {
+		wT = *(o.WriteTimeout)
 	}
 	a := _defaultAddr
-	if opts.Port != nil {
-		a = ":" + *(opts.Port)
+	if o.Port != nil {
+		a = ":" + *(o.Port)
 	}
 
 	httpServer := &http.Server{

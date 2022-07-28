@@ -1,6 +1,7 @@
 package gin
 
 import (
+	"log"
 	"net/http"
 
 	g "github.com/gin-gonic/gin"
@@ -57,6 +58,22 @@ type (
 )
 
 func New(o *Options) *Gin {
+	if o.Mode == "" {
+		log.Fatal("gin - option mode not found")
+	}
+	if o.Version == "" {
+		log.Fatal("gin - option version not found")
+	}
+	if o.BaseUrl == "" {
+		log.Fatal("gin - option base url not found")
+	}
+	if o.Log == nil {
+		log.Fatal("gin - option log not found")
+	}
+	if o.AuthType == "" {
+		log.Fatal("gin - option auth type not found")
+	}
+
 	g.SetMode(o.Mode)
 	gEngine := g.New()
 	gEngine.Use(g.Logger())
@@ -110,7 +127,7 @@ func headerCheck(gin *Gin) g.HandlerFunc {
 
 func (gin *Gin) ErrorResponse(c *g.Context, code int, msg string, iss string, err error) {
 	if err != nil {
-		gin.Options.Log.Error(err, iss)
+		gin.Options.Log.Error(iss, err)
 	}
 	c.AbortWithStatusJSON(code, &Error{msg})
 }

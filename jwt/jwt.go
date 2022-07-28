@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"strconv"
 	"time"
 
@@ -36,24 +37,37 @@ type (
 )
 
 func NewRSA(o *Options) (*Jwt, error) {
+	if o.PrivateKeyPath == "" {
+		log.Fatal("jwt - option private key path not found")
+	}
+	if o.PublicKeyPath == "" {
+		log.Fatal("jwt - option public key path not found")
+	}
+	if o.AccessTokenLifetime == 0 {
+		log.Fatal("jwt - option access token lifetime not found")
+	}
+	if o.RefreshTokenLifetime == 0 {
+		log.Fatal("jwt - option refresh token lifetime not found")
+	}
+
 	vb, err := ioutil.ReadFile(o.PrivateKeyPath)
 	if err != nil {
-		return nil, fmt.Errorf("Jwt : %w", err)
+		return nil, err
 	}
 
 	vk, err := j.ParseRSAPrivateKeyFromPEM(vb)
 	if err != nil {
-		return nil, fmt.Errorf("Jwt : %w", err)
+		return nil, err
 	}
 
 	cb, err := ioutil.ReadFile(o.PublicKeyPath)
 	if err != nil {
-		return nil, fmt.Errorf("Jwt : %w", err)
+		return nil, err
 	}
 
 	ck, err := j.ParseRSAPublicKeyFromPEM(cb)
 	if err != nil {
-		return nil, fmt.Errorf("Jwt : %w", err)
+		return nil, err
 	}
 
 	return &Jwt{vk, ck, o}, nil
@@ -77,7 +91,7 @@ func (jwt *Jwt) generateToken(typ string, exp int, uid uint64, key *string, iss 
 func (jwt *Jwt) AccessToken(uid uint64, iss string) (*string, error) {
 	tk, err := jwt.generateToken("access", jwt.Options.RefreshTokenLifetime, uid, nil, iss)
 	if err != nil {
-		return nil, fmt.Errorf("Jwt : %w", err)
+		return nil, err
 	}
 	return &tk, nil
 }
@@ -89,7 +103,7 @@ func (jwt *Jwt) RefreshToken(uid uint64, iss string) (*string, *string, error) {
 	hk := hex.EncodeToString(k.Sum(nil))
 	tk, err := jwt.generateToken("refresh", jwt.Options.RefreshTokenLifetime, uid, &hk, iss)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Jwt : %w", err)
+		return nil, nil, err
 	}
 	return &tk, &hk, nil
 }

@@ -1,8 +1,6 @@
 package twilio
 
 import (
-	"fmt"
-
 	twl "github.com/twilio/twilio-go"
 	verify "github.com/twilio/twilio-go/rest/verify/v2"
 )
@@ -12,14 +10,14 @@ type Twilio struct {
 	ssi string
 }
 
-func New(s string, tkn string, sid string) (*Twilio, error) {
+func New(s string, tkn string, sid string) *Twilio {
 	c := twl.NewRestClientWithParams(twl.ClientParams{
 		Username: s,
 		Password: tkn,
 	})
 
 	t := &Twilio{c, sid}
-	return t, nil
+	return t
 }
 
 func (t *Twilio) Verify(p string) (*string, error) {
@@ -29,7 +27,7 @@ func (t *Twilio) Verify(p string) (*string, error) {
 
 	v, err := t.cln.VerifyV2.CreateVerification(t.ssi, params)
 	if err != nil {
-		return nil, fmt.Errorf("Twilio - Verify: %w", err)
+		return nil, err
 	}
 	return v.Sid, nil
 }
@@ -41,7 +39,7 @@ func (t *Twilio) VerifyCheck(p string, c string) (*string, error) {
 
 	v, err := t.cln.VerifyV2.CreateVerificationCheck(t.ssi, params)
 	if err != nil {
-		return nil, fmt.Errorf("Twilio - VerifyCheck: %w", err)
+		return nil, err
 	}
 	return v.Sid, nil
 }

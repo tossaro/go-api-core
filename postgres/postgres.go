@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -28,26 +27,30 @@ type (
 	}
 )
 
-func New(opts *Options) (*Postgres, error) {
-	poolConfig, err := pgxpool.ParseConfig(opts.Url)
+func New(o *Options) *Postgres {
+	if o.Url == "" {
+		log.Fatal("postgres - option url not found")
+	}
+
+	poolConfig, err := pgxpool.ParseConfig(o.Url)
 	if err != nil {
-		return nil, fmt.Errorf("postgres - pgxpool.ParseConfig: %w", err)
+		log.Fatal("postgres - parse config error: %w", err)
 	}
 
 	pMax := _defaultPoolMax
-	if opts.PoolMax != nil {
-		pMax = *(opts.PoolMax)
+	if o.PoolMax != nil {
+		pMax = *(o.PoolMax)
 	}
 	poolConfig.MaxConns = int32(pMax)
 
 	cAt := _defaultConnAttempts
-	if opts.ConnAttempts != nil {
-		cAt = *(opts.ConnAttempts)
+	if o.ConnAttempts != nil {
+		cAt = *(o.ConnAttempts)
 	}
 
 	cTm := _defaultConnTimeout
-	if opts.ConnTimeout != nil {
-		cTm = *(opts.ConnTimeout)
+	if o.ConnTimeout != nil {
+		cTm = *(o.ConnTimeout)
 	}
 
 	var p *pgxpool.Pool
@@ -62,12 +65,12 @@ func New(opts *Options) (*Postgres, error) {
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("postgres - connection failed: %w", err)
+		log.Fatal("postgres - connection error: %w", err)
 	}
 
-	migrate(opts.Url + "?sslmode=disable")
+	migrate(o.Url + "?sslmode=disable")
 
-	return &Postgres{p}, nil
+	return &Postgres{p}
 }
 
 func (p *Postgres) Close() {

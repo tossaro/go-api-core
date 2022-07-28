@@ -42,12 +42,6 @@ type (
 			PoolMax int
 		}
 
-		Twilio struct {
-			SID        string
-			Token      string
-			ServiceSID string
-		}
-
 		TOKEN struct {
 			Access  int
 			Refresh int
@@ -76,19 +70,19 @@ func NewConfig(f string) (Config, logger.Interface) {
 
 	aVersion, ok := os.LookupEnv("APP_VERSION")
 	if !ok {
-		log.Fatal("env APP_VERSION not provided\n")
+		log.Fatal("env APP_VERSION not provided")
 	}
 	cfg.App.Version = aVersion
 
 	hMode, ok := os.LookupEnv("HTTP_MODE")
 	if !ok {
-		log.Fatal("env HTTP_MODE not provided\n")
+		log.Fatal("env HTTP_MODE not provided")
 	}
 	cfg.HTTP.Mode = hMode
 
 	hPort, ok := os.LookupEnv("HTTP_PORT")
 	if !ok {
-		log.Fatal("env HTTP_PORT not provided\n")
+		log.Fatal("env HTTP_PORT not provided")
 	}
 	cfg.HTTP.Port = hPort
 
@@ -102,59 +96,41 @@ func NewConfig(f string) (Config, logger.Interface) {
 
 	gPort, ok := os.LookupEnv("GRPC_PORT")
 	if !ok {
-		l.Error("env GRPC_PORT not provided\n")
+		l.Error("env GRPC_PORT not provided")
 	}
 	cfg.GRPC.Port = gPort
 
 	rUrl, ok := os.LookupEnv("REDIS_URL")
 	if !ok {
-		l.Error("env REDIS_URL not provided\n")
+		l.Error("env REDIS_URL not provided")
 	}
 	cfg.Redis.Url = rUrl
 
 	rPass, ok := os.LookupEnv("REDIS_PASSWORD")
 	if !ok {
-		l.Error("env REDIS_PASSWORD not provided\n")
+		l.Error("env REDIS_PASSWORD not provided")
 	}
 	cfg.Redis.Password = rPass
 
 	pUrl, ok := os.LookupEnv("POSTGRE_URL")
 	if !ok {
-		l.Error("env POSTGRE_URL not provided\n")
+		l.Error("env POSTGRE_URL not provided")
 	}
 	cfg.Postgre.Url = pUrl
 
 	pPoolMax, ok := os.LookupEnv("POSTGRE_POOL_MAX")
 	if !ok {
-		l.Error("env POSTGRE_POOL_MAX not provided\n")
+		l.Error("env POSTGRE_POOL_MAX not provided")
 	}
 	tPMIn, err := strconv.Atoi(pPoolMax)
 	if err != nil {
-		l.Error(fmt.Sprintf("convert POSTGRE_POOL_MAX failed: %v\n", err))
+		l.Error(fmt.Sprintf("convert POSTGRE_POOL_MAX failed: %v", err))
 	}
 	cfg.Postgre.PoolMax = tPMIn
 
-	tSID, ok := os.LookupEnv("TWILIO_SID")
-	if !ok {
-		l.Error("env TWILIO_SID not provided\n")
-	}
-	cfg.Twilio.SID = tSID
-
-	twToken, ok := os.LookupEnv("TWILIO_TOKEN")
-	if !ok {
-		l.Error("env TWILIO_TOKEN not provided\n")
-	}
-	cfg.Twilio.Token = twToken
-
-	twServiceSID, ok := os.LookupEnv("TWILIO_SERVICE_SID")
-	if !ok {
-		l.Error("env TWILIO_SERVICE_SID not provided\n")
-	}
-	cfg.Twilio.ServiceSID = twServiceSID
-
 	tAccess, ok := os.LookupEnv("TOKEN_ACCESS")
 	if !ok {
-		l.Error("env TOKEN_ACCESS not provided\n")
+		l.Error("env TOKEN_ACCESS not provided")
 	}
 	tAcIn, err := strconv.Atoi(tAccess)
 	if err != nil {
@@ -164,7 +140,7 @@ func NewConfig(f string) (Config, logger.Interface) {
 
 	tRefresh, ok := os.LookupEnv("TOKEN_REFRESH")
 	if !ok {
-		l.Error("env TOKEN_REFRESH not provided\n")
+		l.Error("env TOKEN_REFRESH not provided")
 	}
 	tRefIn, err := strconv.Atoi(tRefresh)
 	if err != nil {
@@ -174,7 +150,7 @@ func NewConfig(f string) (Config, logger.Interface) {
 
 	sAuth, ok := os.LookupEnv("SERVICE_AUTH_URL")
 	if !ok {
-		l.Error("env SERVICE_AUTH_URL not provided\n")
+		l.Error("env SERVICE_AUTH_URL not provided")
 	}
 	cfg.Services = append(cfg.Services, Service{"Auth", sAuth})
 

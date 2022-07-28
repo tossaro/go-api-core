@@ -55,7 +55,7 @@ func (gin *Gin) RefreshSessionJwt(uid uint64, key string, req string) (TokenV1, 
 	var t TokenV1
 	v, _ := gin.Redis.Get(context.Background(), key).Result()
 	if v != "0" && v != req {
-		return t, fmt.Errorf(key)
+		return t, fmt.Errorf("token key empty or req key different" + key)
 	}
 
 	if v == req {

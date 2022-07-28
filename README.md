@@ -38,16 +38,18 @@ func main() {
 5. Add every package that you need for your API as example `gin`:
 ```go
 cap := true
-grpcUrl := ":" + cfg.GRPC.Port
+// grpcUrl := ":" + cfg.GRPC.Port
 g := gin.New(&gin.Options{
-    Mode:    cfg.HTTP.Mode,
-    Version: cfg.App.Version,
-    BaseUrl: cfg.App.Name,
-    Logger:  l,
-    // if session from redis
-    // Redis:        rdb,
+    Mode:     cfg.HTTP.Mode,
+    Version:  cfg.App.Version,
+    BaseUrl:  cfg.App.Name,
+    Log:      log,
+    AuthType: gin.AuthTypeRedis,
+    // if session from redis enable redis & jwt
+    Redis: rdb,
+    Jwt:   jwt,
     // if session from another grpc service
-    AuthService:  &grpcUrl,
+    // AuthService:  &grpcUrl,
     AccessToken:  cfg.TOKEN.Access,
     RefreshToken: cfg.TOKEN.Refresh,
     Captcha:      &cap,

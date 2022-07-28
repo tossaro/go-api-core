@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -22,7 +21,22 @@ import (
 // @host        localhost:8080
 // @BasePath    /go-api-core
 func main() {
-	cfg, log := core.NewConfig("./../../.env")
+	cfg, log := core.NewConfig("./.env")
+
+	twSID, ok := os.LookupEnv("TWILIO_SID")
+	if !ok {
+		log.Fatal("env TWILIO_SID not provided")
+	}
+
+	twToken, ok := os.LookupEnv("TWILIO_TOKEN")
+	if !ok {
+		log.Fatal("env TWILIO_TOKEN not provided")
+	}
+
+	twServiceSID, ok := os.LookupEnv("TWILIO_SERVICE_SID")
+	if !ok {
+		log.Fatal("env TWILIO_SERVICE_SID not provided")
+	}
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     cfg.Redis.Url,
@@ -32,28 +46,22 @@ func main() {
 	defer rdb.Close()
 	log.Info("app - redis initialized")
 
-	_, err := postgres.New(&postgres.Options{
+	_ = postgres.New(&postgres.Options{
 		Url: cfg.Postgre.Url,
 	})
-	if err != nil {
-		log.Error("app - postgres.New: %w", err)
-	}
 	log.Info("app - postgres initialized")
 
-	_, err = twilio.New(cfg.Twilio.SID, cfg.Twilio.Token, cfg.Twilio.ServiceSID)
-	if err != nil {
-		log.Error("app - twilio.New: %w", err)
-	}
+	_ = twilio.New(twSID, twToken, twServiceSID)
 	log.Info("app - twilio initialized")
 
 	jwt, err := j.NewRSA(&j.Options{
 		AccessTokenLifetime:  cfg.TOKEN.Access,
 		RefreshTokenLifetime: cfg.TOKEN.Refresh,
-		PrivateKeyPath:       "./../../key_private.pem",
-		PublicKeyPath:        "./../../key_public.pem",
+		PrivateKeyPath:       "./key_private.pem",
+		PublicKeyPath:        "./key_public.pem",
 	})
 	if err != nil {
-		log.Error("JWT error: %s", err)
+		log.Error("app - jwt error: %s", err)
 	}
 
 	cap := true
@@ -85,11 +93,11 @@ func main() {
 	case s := <-interrupt:
 		log.Info("app - signal: " + s.String())
 	case err = <-httpServer.Notify():
-		log.Error(fmt.Errorf("app - httpServer.Notify: %w", err))
+		log.Error("app - httpServer.Notify: %s", err)
 	}
 
 	err = httpServer.Shutdown()
 	if err != nil {
-		log.Error(fmt.Errorf("app - httpServer.Shutdown: %w", err))
+		log.Error("app - httpServer.Shutdown: %s", err)
 	}
 }

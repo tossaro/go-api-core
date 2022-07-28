@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,7 +12,6 @@ import (
 	"github.com/tossaro/go-api-core/gin"
 	"github.com/tossaro/go-api-core/httpserver"
 	j "github.com/tossaro/go-api-core/jwt"
-	"github.com/tossaro/go-api-core/logger"
 	"github.com/tossaro/go-api-core/postgres"
 	"github.com/tossaro/go-api-core/twilio"
 )
@@ -24,12 +22,7 @@ import (
 // @host        localhost:8080
 // @BasePath    /go-api-core
 func main() {
-	cfg, err := core.NewConfig("./../../.env")
-	if err != nil {
-		log.Printf("Config error: %s", err)
-	}
-
-	l := logger.New(cfg.Log.Level)
+	cfg, log := core.NewConfig("./../../.env")
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     cfg.Redis.Url,
@@ -37,21 +30,21 @@ func main() {
 		DB:       0,
 	})
 	defer rdb.Close()
-	l.Info("app - redis initialized")
+	log.Info("app - redis initialized")
 
-	_, err = postgres.New(&postgres.Options{
+	_, err := postgres.New(&postgres.Options{
 		Url: cfg.Postgre.Url,
 	})
 	if err != nil {
-		l.Error("app - postgres.New: %w", err)
+		log.Error("app - postgres.New: %w", err)
 	}
-	l.Info("app - postgres initialized")
+	log.Info("app - postgres initialized")
 
 	_, err = twilio.New(cfg.Twilio.SID, cfg.Twilio.Token, cfg.Twilio.ServiceSID)
 	if err != nil {
-		l.Error("app - twilio.New: %w", err)
+		log.Error("app - twilio.New: %w", err)
 	}
-	l.Info("app - twilio initialized")
+	log.Info("app - twilio initialized")
 
 	jwt, err := j.NewRSA(&j.Options{
 		AccessTokenLifetime:  cfg.TOKEN.Access,
@@ -60,7 +53,7 @@ func main() {
 		PublicKeyPath:        "./../../key_public.pem",
 	})
 	if err != nil {
-		l.Error("JWT error: %s", err)
+		log.Error("JWT error: %s", err)
 	}
 
 	cap := true
@@ -69,7 +62,7 @@ func main() {
 		Mode:    cfg.HTTP.Mode,
 		Version: cfg.App.Version,
 		BaseUrl: cfg.App.Name,
-		Logger:  l,
+		Logger:  log,
 		// if session from redis enable redis & jwt
 		Redis: rdb,
 		Jwt:   jwt,
@@ -89,13 +82,13 @@ func main() {
 
 	select {
 	case s := <-interrupt:
-		l.Info("app - signal: " + s.String())
+		log.Info("app - signal: " + s.String())
 	case err = <-httpServer.Notify():
-		l.Error(fmt.Errorf("app - httpServer.Notify: %w", err))
+		log.Error(fmt.Errorf("app - httpServer.Notify: %w", err))
 	}
 
 	err = httpServer.Shutdown()
 	if err != nil {
-		l.Error(fmt.Errorf("app - httpServer.Shutdown: %w", err))
+		log.Error(fmt.Errorf("app - httpServer.Shutdown: %w", err))
 	}
 }

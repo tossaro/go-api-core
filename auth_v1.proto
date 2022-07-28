@@ -12,5 +12,5 @@ message AuthRequestV1 {
 
 message AuthResponseV1 {
     uint64 UID = 1;
-    string key = 3;
+    optional string key = 3;
 }

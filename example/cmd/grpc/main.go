@@ -2,39 +2,32 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
 
 	core "github.com/tossaro/go-api-core"
 	pAuth "github.com/tossaro/go-api-core/auth/proto"
-	"github.com/tossaro/go-api-core/logger"
 	"google.golang.org/grpc"
 )
 
 type (
-	authServer struct {
+	service1 struct {
 		pAuth.UnimplementedAuthServiceV1Server
 	}
 )
 
 func main() {
-	cfg, err := core.NewConfig("./../../.env")
-	if err != nil {
-		log.Printf("Config error: %s", err)
-	}
-
-	l := logger.New(cfg.Log.Level)
+	cfg, log := core.NewConfig("./../../.env")
 
 	conn, err := net.Listen("tcp", ":"+cfg.GRPC.Port)
 	if err != nil {
-		l.Error(fmt.Errorf("app - tcp connection error: %w", err))
+		log.Error(fmt.Errorf("app - tcp connection error: %w", err))
 	}
 
 	s := grpc.NewServer()
-	pAuth.RegisterAuthServiceV1Server(s, &authServer{})
+	pAuth.RegisterAuthServiceV1Server(s, &service1{})
 
-	l.Info("app - grpc listening at %v", conn.Addr())
+	log.Info("app - grpc listening at %v", conn.Addr())
 	if err := s.Serve(conn); err != nil {
-		l.Error(fmt.Errorf("app - failed serve grpc: %w", err))
+		log.Error(fmt.Errorf("app - failed serve grpc: %w", err))
 	}
 }

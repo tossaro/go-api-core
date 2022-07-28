@@ -59,10 +59,11 @@ func main() {
 	cap := true
 	// grpcUrl := ":" + cfg.GRPC.Port
 	g := gin.New(&gin.Options{
-		Mode:    cfg.HTTP.Mode,
-		Version: cfg.App.Version,
-		BaseUrl: cfg.App.Name,
-		Logger:  log,
+		Mode:     cfg.HTTP.Mode,
+		Version:  cfg.App.Version,
+		BaseUrl:  cfg.App.Name,
+		Log:      log,
+		AuthType: gin.AuthTypeRedis,
 		// if session from redis enable redis & jwt
 		Redis: rdb,
 		Jwt:   jwt,

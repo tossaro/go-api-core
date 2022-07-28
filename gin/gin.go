@@ -1,13 +1,7 @@
 package gin
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
-	"strings"
-	"time"
 
 	g "github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
@@ -20,6 +14,11 @@ import (
 	"github.com/tossaro/go-api-core/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+)
+
+const (
+	AuthTypeGrpc  = "grpc"
+	AuthTypeRedis = "redis"
 )
 
 type (
@@ -41,7 +40,8 @@ type (
 		Mode         string
 		Version      string
 		BaseUrl      string
-		Logger       logger.Interface
+		Log          logger.Interface
+		AuthType     string
 		AuthService  *string
 		Redis        *redis.Client
 		Jwt          *j.Jwt
@@ -66,7 +66,7 @@ func New(o *Options) *Gin {
 	if o.AuthService != nil {
 		conn, err := grpc.Dial(*o.AuthService, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
-			log.Printf("GRPC error: %s", err)
+			o.Log.Error("Gin init auth error: %s", err)
 		}
 		defer conn.Close()
 
@@ -83,7 +83,7 @@ func New(o *Options) *Gin {
 		gRouter.GET("/swagger/*any", gsw.DisablingWrapHandler(sf.Handler, "HTTP_SWAGGER_DISABLED"))
 
 		if o.Captcha != nil && *(o.Captcha) {
-			captcha.New(gRouter, o.Logger)
+			captcha.New(gRouter, o.Log)
 		}
 	}
 
@@ -108,6 +108,40 @@ func headerCheck(gin *Gin) g.HandlerFunc {
 	}
 }
 
+func (gin *Gin) ErrorResponse(c *g.Context, code int, msg string, iss string, err error) {
+	if err != nil {
+		gin.Options.Log.Error(err, iss)
+	}
+	c.AbortWithStatusJSON(code, &Error{msg})
+}
+
+func (gin *Gin) AuthAccessMiddleware() g.HandlerFunc {
+	return gin.authCheck("access")
+}
+
+func (gin *Gin) AuthRefreshMiddleware() g.HandlerFunc {
+	return gin.authCheck("refresh")
+}
+
+func (gin *Gin) authCheck(typ string) g.HandlerFunc {
+	return func(c *g.Context) {
+		if gin.Options.AuthType == AuthTypeGrpc {
+			if gin.AuthClient == nil {
+				gin.ErrorResponse(c, http.StatusInternalServerError, "Missing auth processor", "http-auth", nil)
+				return
+			}
+			gin.checkSessionFromGrpc(c, typ)
+		}
+		if gin.Options.AuthType == AuthTypeRedis {
+			if gin.Redis == nil || gin.Jwt == nil {
+				gin.ErrorResponse(c, http.StatusInternalServerError, "Missing auth processor", "http-auth", nil)
+				return
+			}
+			gin.checkSessionFromJwt(c, typ)
+		}
+	}
+}
+
 // @Summary     Get Version
 // @Description Get Version
 // @ID          version
@@ -118,150 +152,4 @@ func headerCheck(gin *Gin) g.HandlerFunc {
 // @Router      /version [get]
 func (gin *Gin) version(c *g.Context) {
 	c.JSON(http.StatusOK, gin.Options.Version)
-}
-
-func (gin *Gin) ErrorResponse(c *g.Context, code int, msg string, iss string, err error) {
-	if err != nil {
-		gin.Options.Logger.Error(err, iss)
-	}
-	c.AbortWithStatusJSON(code, &Error{msg})
-}
-
-func (gin *Gin) AuthAccessMiddleware() g.HandlerFunc {
-	if gin.Options.Redis != nil {
-		return gin.checkSessionFromJwt("access")
-	}
-	return gin.checkSessionFromService("access")
-}
-
-func (gin *Gin) AuthRefreshMiddleware() g.HandlerFunc {
-	if gin.Options.Redis != nil {
-		return gin.checkSessionFromJwt("refresh")
-	}
-	return gin.checkSessionFromService("refresh")
-}
-
-func (gin *Gin) checkSessionFromService(typ string) g.HandlerFunc {
-	return func(c *g.Context) {
-		if gin.Options.AuthService == nil {
-			gin.ErrorResponse(c, http.StatusUnauthorized, "Authentication Error", "http-auth", nil)
-			return
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-
-		ah := c.GetHeader("Authorization")
-		sa := strings.Split(ah, " ")
-		if len(sa) != 2 {
-			gin.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "http-auth", nil)
-			return
-		}
-
-		a := *gin.AuthClient
-		r, err := a.CheckV1(ctx, &pAuth.AuthRequestV1{Token: sa[1], Type: typ})
-		if err != nil {
-			gin.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "http-auth", nil)
-			return
-		}
-
-		ctx2 := context.WithValue(c.Request.Context(), CKey("user_id"), r.GetUID())
-		if typ == "refresh" && r.GetKey() != "" {
-			ctx2 = context.WithValue(ctx2, CKey("user_key"), r.GetKey())
-		}
-		c.Request = c.Request.WithContext(ctx2)
-		c.Next()
-	}
-}
-
-func (gin *Gin) checkSessionFromJwt(typ string) g.HandlerFunc {
-	return func(c *g.Context) {
-		if gin.Options.Redis == nil {
-			gin.ErrorResponse(c, http.StatusUnauthorized, "Authentication Error", "http-auth", nil)
-			return
-		}
-
-		ah := c.GetHeader("Authorization")
-		sa := strings.Split(ah, " ")
-		if len(sa) != 2 {
-			gin.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "http-auth", nil)
-			return
-		}
-		claims, err := gin.Jwt.Validate(sa[1])
-		if err != nil || typ != claims.Type {
-			gin.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "http-auth", err)
-			return
-		}
-
-		ctx := context.WithValue(c.Request.Context(), CKey("user_id"), claims.UID)
-		if typ == "refresh" && claims.Key != nil {
-			ctx = context.WithValue(ctx, CKey("user_key"), claims.Key)
-		}
-		c.Request = c.Request.WithContext(ctx)
-		c.Next()
-	}
-}
-
-func (gin *Gin) CreateSessionJwt(uid uint64, iss string) (TokenV1, error) {
-	var t TokenV1
-	ac, err := gin.Jwt.AccessToken(uid, iss)
-	if err != nil {
-		return t, err
-	}
-
-	rf, k, err := gin.Jwt.RefreshToken(uid, iss)
-	if err != nil {
-		return t, err
-	}
-
-	err = gin.Redis.Set(context.Background(), *(k), "0", 0).Err()
-	if err != nil {
-		return t, err
-	}
-
-	return TokenV1{Access: *(ac), Refresh: *(rf)}, nil
-}
-
-func (gin *Gin) RefreshSessionJwt(uid uint64, key string, req string) (TokenV1, error) {
-	var t TokenV1
-	v, _ := gin.Redis.Get(context.Background(), key).Result()
-	if v != "0" && v != req {
-		return t, fmt.Errorf(key)
-	}
-
-	if v == req {
-		nt, err := gin.Redis.Get(context.Background(), key+"_issued").Result()
-		if err != nil {
-			return t, err
-		}
-
-		err = json.Unmarshal([]byte(nt), &t)
-		if err != nil {
-			return t, err
-		}
-
-		return t, nil
-	}
-
-	err := gin.Redis.Set(context.Background(), key, req, 0).Err()
-	if err != nil {
-		return t, err
-	}
-
-	ses, err := gin.CreateSessionJwt(uid, req)
-	if err != nil {
-		return t, err
-	}
-
-	jses, err := json.Marshal(ses)
-	if err != nil {
-		return t, err
-	}
-
-	err = gin.Redis.Set(context.Background(), key+"_issued", jses, 0).Err()
-	if err != nil {
-		return t, err
-	}
-
-	return ses, nil
 }

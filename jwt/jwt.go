@@ -81,7 +81,7 @@ func (jwt *Jwt) generateToken(typ string, exp int, uid uint64, key *string, iss 
 		j.RegisteredClaims{
 			Issuer:    iss,
 			IssuedAt:  j.NewNumericDate(time.Now()),
-			ExpiresAt: j.NewNumericDate(time.Now().Add(time.Minute * time.Duration(jwt.Options.AccessTokenLifetime))),
+			ExpiresAt: j.NewNumericDate(time.Now().Add(time.Minute * time.Duration(exp))),
 		},
 	}
 	token := j.NewWithClaims(j.SigningMethodRS256, c)
@@ -89,7 +89,7 @@ func (jwt *Jwt) generateToken(typ string, exp int, uid uint64, key *string, iss 
 }
 
 func (jwt *Jwt) AccessToken(uid uint64, iss string) (*string, error) {
-	tk, err := jwt.generateToken("access", jwt.Options.RefreshTokenLifetime, uid, nil, iss)
+	tk, err := jwt.generateToken("access", jwt.Options.AccessTokenLifetime, uid, nil, iss)
 	if err != nil {
 		return nil, err
 	}

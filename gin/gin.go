@@ -5,22 +5,18 @@ import (
 	"net/http"
 
 	g "github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	prm "github.com/prometheus/client_golang/prometheus/promhttp"
 	sf "github.com/swaggo/files"
 	gsw "github.com/swaggo/gin-swagger"
-	pAuth "github.com/tossaro/go-api-core/auth/proto"
 	"github.com/tossaro/go-api-core/captcha"
 	j "github.com/tossaro/go-api-core/jwt"
 	"github.com/tossaro/go-api-core/logger"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
-	AuthTypeGrpc  = "grpc"
-	AuthTypeRedis = "redis"
+	AuthTypeGrpc = "grpc"
+	AuthTypeJwt  = "jwt"
 )
 
 type (
@@ -31,26 +27,22 @@ type (
 	}
 
 	Gin struct {
-		Gin        *g.Engine
-		Router     *g.RouterGroup
-		Jwt        *j.Jwt
-		AuthClient *pAuth.AuthServiceV1Client
+		Gin    *g.Engine
+		Router *g.RouterGroup
+		Jwt    *j.Jwt
 		*Options
 	}
 
 	Options struct {
-		I18n         *i18n.Bundle
-		Mode         string
-		Version      string
-		BaseUrl      string
-		Log          logger.Interface
-		AuthType     string
-		AuthService  *string
-		Redis        *redis.Client
-		Jwt          *j.Jwt
-		AccessToken  int
-		RefreshToken int
-		Captcha      *bool
+		I18n        *i18n.Bundle
+		Mode        string
+		Version     string
+		BaseUrl     string
+		Log         logger.Interface
+		AuthType    string
+		AuthService *string
+		Jwt         *j.Jwt
+		Captcha     *bool
 	}
 
 	TokenV1 struct {
@@ -61,22 +53,28 @@ type (
 
 func New(o *Options) *Gin {
 	if o.I18n == nil {
-		log.Fatal("gin - option i18n bundle not found")
+		log.Fatal("gin - I18n option not provided")
 	}
 	if o.Mode == "" {
-		log.Fatal("gin - option mode not found")
+		log.Fatal("gin - Mode option not provided")
 	}
 	if o.Version == "" {
-		log.Fatal("gin - option version not found")
+		log.Fatal("gin - Version option not provided")
 	}
 	if o.BaseUrl == "" {
-		log.Fatal("gin - option base url not found")
+		log.Fatal("gin - BaseUrl option not provided")
 	}
 	if o.Log == nil {
-		log.Fatal("gin - option log not found")
+		log.Fatal("gin - Log option not provided")
 	}
 	if o.AuthType == "" {
-		log.Fatal("gin - option auth type not found")
+		log.Fatal("gin - AuthType option auth type not provided")
+	}
+	if o.AuthType == AuthTypeGrpc && o.AuthService == nil {
+		log.Fatal("gin - AuthTypeGrpc require AuthService option")
+	}
+	if o.AuthType == AuthTypeJwt && o.Jwt == nil {
+		log.Fatal("gin - AuthTypeJwt require Jwt option")
 	}
 
 	g.SetMode(o.Mode)
@@ -84,20 +82,7 @@ func New(o *Options) *Gin {
 	gEngine.Use(g.Logger())
 	gEngine.Use(g.Recovery())
 
-	var authClient *pAuth.AuthServiceV1Client
-	if o.AuthService != nil {
-		log.Printf(*o.AuthService)
-		conn, err := grpc.Dial(*o.AuthService, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			o.Log.Error("Gin init auth error: %s", err)
-		}
-		defer conn.Close()
-
-		c := pAuth.NewAuthServiceV1Client(conn)
-		authClient = &c
-	}
-
-	gin := &Gin{gEngine, nil, o.Jwt, authClient, o}
+	gin := &Gin{gEngine, nil, o.Jwt, o}
 
 	gRouter := gEngine.Group(o.BaseUrl)
 	{
@@ -117,15 +102,21 @@ func New(o *Options) *Gin {
 
 func headerCheck(gin *Gin) g.HandlerFunc {
 	return func(c *g.Context) {
-		l := c.GetHeader("x-platform-lang")
+		localizer := i18n.NewLocalizer(gin.Options.I18n, c.GetHeader("x-request-lang"))
+		missHeader, err := localizer.LocalizeMessage(&i18n.Message{ID: "missing_header"})
+		if err != nil {
+			gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error", "jwt-validate", err)
+			return
+		}
+		l := c.GetHeader("x-request-lang")
 		if l == "" {
-			gin.ErrorResponse(c, http.StatusBadRequest, "missing header param", "http-auth", nil)
+			gin.ErrorResponse(c, http.StatusBadRequest, missHeader, "http-auth", nil)
 			return
 		}
 
 		p := c.GetHeader("x-request-key")
 		if p == "" {
-			gin.ErrorResponse(c, http.StatusBadRequest, "missing header param", "http-auth", nil)
+			gin.ErrorResponse(c, http.StatusBadRequest, missHeader, "http-auth", nil)
 			return
 		}
 	}
@@ -149,17 +140,9 @@ func (gin *Gin) AuthRefreshMiddleware() g.HandlerFunc {
 func (gin *Gin) authCheck(typ string) g.HandlerFunc {
 	return func(c *g.Context) {
 		if gin.Options.AuthType == AuthTypeGrpc {
-			if gin.AuthClient == nil {
-				gin.ErrorResponse(c, http.StatusInternalServerError, "Missing auth processor", "http-auth", nil)
-				return
-			}
 			gin.checkSessionFromGrpc(c, typ)
 		}
-		if gin.Options.AuthType == AuthTypeRedis {
-			if gin.Redis == nil || gin.Jwt == nil {
-				gin.ErrorResponse(c, http.StatusInternalServerError, "Missing auth processor", "http-auth", nil)
-				return
-			}
+		if gin.Options.AuthType == AuthTypeJwt {
 			gin.checkSessionFromJwt(c, typ)
 		}
 	}

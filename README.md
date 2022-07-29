@@ -9,22 +9,43 @@ Based on common API stack, here is a list of enhanced packages to simplify your 
 
 ## Getting started
 
-You have an option, you can use core Config or your own config.
-Here if you use core Config:
+You have an option, you can use core as framework modular, or your own config with manual use of package, or event use directly enhanced package.
 
 1. Download core by using:
 ```sh
     $ go get -u github.com/tossaro/go-api-core
 ```
 
-2. Add file `.env` on your `main.go` folder, see [.env](https://github.com/tossaro/go-api-core/blob/main/example/.env)
+2. Add file `.env` on your `main.go` folder, see [.env](https://github.com/tossaro/go-api-core/blob/main/example/manual/.env)
 
 3. Import the following package:
 ```go
 import core "github.com/tossaro/go-api-core"
 ```
 
-4. Initial the config in `main.go` code:
+### Modular Framework [example](https://github.com/tossaro/go-api-core/tree/main/example/modular)
+
+On your `main.go` initialize every package before, and inject to ModuleParams:
+```go
+//...
+captcha := true
+privateKeyPath := "./key_private.pem"
+publicKeyPath := "./key_public.pem"
+core.NewHttp(core.Options{
+    EnvPath:        "./.env",
+    PrivateKeyPath: &privateKeyPath,
+    PublicKeyPath:  &publicKeyPath,
+    AuthType:       gin.AuthTypeJwt,
+    I18n:           bI18n,
+    Captcha:        &captcha,
+    Modules:        []func(...interface{}){module1.NewHttpV1},
+    ModuleParams:   append(make([]interface{}, 0), param1, param2, ...),
+})
+```
+
+### Core config with manual use of package [example](https://github.com/tossaro/go-api-core/tree/main/example/manual)
+
+1. Initial the config in `main.go` code:
 ```go
 func main() {
     cfg, err := core.NewConfig()
@@ -35,25 +56,24 @@ func main() {
 }
 ```
 
-5. Add every package that you need for your API as example `gin`:
+2. Add every package that you need for your API as example `gin`:
 ```go
-cap := true
-// grpcUrl := ":" + cfg.GRPC.Port
+//...
+captcha := true
 g := gin.New(&gin.Options{
+    I18n:     bI18n,
     Mode:     cfg.HTTP.Mode,
     Version:  cfg.App.Version,
     BaseUrl:  cfg.App.Name,
     Log:      log,
-    AuthType: gin.AuthTypeRedis,
-    // if session from redis enable redis & jwt
-    Redis: rdb,
-    Jwt:   jwt,
-    // if session from another grpc service
-    // AuthService:  &grpcUrl,
-    AccessToken:  cfg.TOKEN.Access,
-    RefreshToken: cfg.TOKEN.Refresh,
-    Captcha:      &cap,
+    AuthType: gin.AuthTypeJwt,
+    // if auth type jwt
+    Jwt: jwt,
+    // if auth type grpc
+    // AuthService:  &cfg.Services[0].Url,
+    Captcha: &captcha,
 })
+//...
 ```
 
 ## Enhanced Packages
@@ -65,9 +85,7 @@ g := gin.New(&gin.Options{
 - [Twilio](https://github.com/tossaro/go-api-core/blob/main/twilio/twilio.go)
 - [Captcha](https://github.com/tossaro/go-api-core/blob/main/captcha/http.go)
 
-## License
-
-### The MIT License (MIT)
+## The MIT License (MIT)
 
 Copyright © `2022` `Hamzah Tossaro`
 

@@ -11,12 +11,18 @@ import (
 	pAuth "github.com/tossaro/go-api-core/auth/proto"
 
 	"github.com/nicksnyder/go-i18n/v2/i18n"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func (gin *Gin) checkSessionFromGrpc(c *g.Context, typ string) {
 	var err error
-	localizer := i18n.NewLocalizer(gin.Options.I18n, c.GetHeader("x-platform-lang"))
+	localizer := i18n.NewLocalizer(gin.Options.I18n, c.GetHeader("x-request-lang"))
 	unauthorizedLoc, err := localizer.LocalizeMessage(&i18n.Message{ID: "unauthorized"})
+	if err != nil {
+		gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error", "jwt-validate", err)
+		return
+	}
 	expiredLoc, err := localizer.LocalizeMessage(&i18n.Message{ID: "expired"})
 	if err != nil {
 		gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error", "jwt-validate", err)
@@ -34,12 +40,18 @@ func (gin *Gin) checkSessionFromGrpc(c *g.Context, typ string) {
 		return
 	}
 
-	a := *gin.AuthClient
-	r, err := a.CheckV1(ctx, &pAuth.AuthRequestV1{Token: sa[1], Type: typ})
+	conn, err := grpc.Dial(*gin.Options.AuthService, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		gin.Options.Log.Error("Gin init auth error: %s", err)
+	}
+	defer conn.Close()
+
+	svc := pAuth.NewAuthServiceV1Client(conn)
+	r, err := svc.CheckV1(ctx, &pAuth.AuthRequestV1{Token: sa[1], Type: typ})
 	if err != nil {
 		status := http.StatusUnauthorized
 		message := unauthorizedLoc
-		if strings.Contains(err.Error(), "expired") {
+		if strings.Contains(err.Error(), "expired") && typ == "refresh" {
 			status = http.StatusExpectationFailed
 			message = expiredLoc
 		}

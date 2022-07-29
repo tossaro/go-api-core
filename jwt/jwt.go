@@ -38,16 +38,16 @@ type (
 
 func NewRSA(o *Options) *Jwt {
 	if o.PrivateKeyPath == "" {
-		log.Fatal("jwt - option private key path not found")
+		log.Fatal("jwt - PrivateKeyPath option not provided")
 	}
 	if o.PublicKeyPath == "" {
-		log.Fatal("jwt - option public key path not found")
+		log.Fatal("jwt - PublicKeyPath option not provided")
 	}
 	if o.AccessTokenLifetime == 0 {
-		log.Fatal("jwt - option access token lifetime not found")
+		log.Fatal("jwt - AccessTokenLifetime option not provided")
 	}
 	if o.RefreshTokenLifetime == 0 {
-		log.Fatal("jwt - option refresh token lifetime not found")
+		log.Fatal("jwt - RefreshTokenLifetime option not provided")
 	}
 
 	vb, err := ioutil.ReadFile(o.PrivateKeyPath)

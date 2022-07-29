@@ -2,9 +2,7 @@ package gin
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -14,8 +12,12 @@ import (
 
 func (gin *Gin) checkSessionFromJwt(c *g.Context, typ string) {
 	var err error
-	localizer := i18n.NewLocalizer(gin.Options.I18n, c.GetHeader("x-platform-lang"))
+	localizer := i18n.NewLocalizer(gin.Options.I18n, c.GetHeader("x-request-lang"))
 	unauthorizedLoc, err := localizer.LocalizeMessage(&i18n.Message{ID: "unauthorized"})
+	if err != nil {
+		gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error", "jwt-validate", err)
+		return
+	}
 	expiredLoc, err := localizer.LocalizeMessage(&i18n.Message{ID: "expired"})
 	if err != nil {
 		gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error", "jwt-validate", err)
@@ -41,7 +43,7 @@ func (gin *Gin) checkSessionFromJwt(c *g.Context, typ string) {
 		return
 	}
 	if typ != claims.Type {
-		err = errors.New("token type missmatch")
+		err = errors.New("token type missmatch: " + typ + "><" + claims.Type)
 		gin.ErrorResponse(c, http.StatusUnauthorized, unauthorizedLoc, "jwt-validate", err)
 		return
 	}
@@ -52,68 +54,4 @@ func (gin *Gin) checkSessionFromJwt(c *g.Context, typ string) {
 	}
 	c.Request = c.Request.WithContext(ctx)
 	c.Next()
-}
-
-func (gin *Gin) CreateSessionJwt(uid uint64, iss string) (TokenV1, error) {
-	var t TokenV1
-	ac, err := gin.Jwt.AccessToken(uid, iss)
-	if err != nil {
-		return t, err
-	}
-
-	rf, k, err := gin.Jwt.RefreshToken(uid, iss)
-	if err != nil {
-		return t, err
-	}
-
-	err = gin.Redis.Set(context.Background(), *(k), "0", 0).Err()
-	if err != nil {
-		return t, err
-	}
-
-	return TokenV1{Access: *(ac), Refresh: *(rf)}, nil
-}
-
-func (gin *Gin) RefreshSessionJwt(uid uint64, key string, req string) (TokenV1, error) {
-	var t TokenV1
-	v, _ := gin.Redis.Get(context.Background(), key).Result()
-	if v != "0" && v != req {
-		return t, fmt.Errorf("token key empty or req key different" + key)
-	}
-
-	if v == req {
-		nt, err := gin.Redis.Get(context.Background(), key+"_issued").Result()
-		if err != nil {
-			return t, err
-		}
-
-		err = json.Unmarshal([]byte(nt), &t)
-		if err != nil {
-			return t, err
-		}
-
-		return t, nil
-	}
-
-	err := gin.Redis.Set(context.Background(), key, req, 0).Err()
-	if err != nil {
-		return t, err
-	}
-
-	ses, err := gin.CreateSessionJwt(uid, req)
-	if err != nil {
-		return t, err
-	}
-
-	jses, err := json.Marshal(ses)
-	if err != nil {
-		return t, err
-	}
-
-	err = gin.Redis.Set(context.Background(), key+"_issued", jses, 0).Err()
-	if err != nil {
-		return t, err
-	}
-
-	return ses, nil
 }

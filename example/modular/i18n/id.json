@@ -1,0 +1,5 @@
+{
+    "unauthorized": "Akses Anda tidak berlaku.",
+    "expired": "Sesi Anda telah berakhir. Silakan login ulang.",
+    "missing_header": "Parameter header yang dibutuhkan tidak lengkap."
+}

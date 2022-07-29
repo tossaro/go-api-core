@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	core "github.com/tossaro/go-api-core"
-	_ "github.com/tossaro/go-api-core/example/docs"
+	_ "github.com/tossaro/go-api-core/example/manual/docs"
+	"github.com/tossaro/go-api-core/example/manual/internal/module1"
 	"github.com/tossaro/go-api-core/gin"
 	"github.com/tossaro/go-api-core/httpserver"
 	j "github.com/tossaro/go-api-core/jwt"
@@ -23,7 +23,7 @@ import (
 // @title       API Core
 // @description API Core
 // @version     1.0.0
-// @host        localhost:8080
+// @host        localhost:8888
 // @BasePath    /go-api-core
 func main() {
 	var err error
@@ -42,16 +42,6 @@ func main() {
 	twServiceSID, ok := os.LookupEnv("TWILIO_SERVICE_SID")
 	if !ok {
 		log.Fatal("env TWILIO_SERVICE_SID not provided")
-	}
-
-	rUrl, ok := os.LookupEnv("REDIS_URL")
-	if !ok {
-		log.Error("env REDIS_URL not provided")
-	}
-
-	rPass, ok := os.LookupEnv("REDIS_PASSWORD")
-	if !ok {
-		log.Error("env REDIS_PASSWORD not provided")
 	}
 
 	tAccess, ok := os.LookupEnv("TOKEN_ACCESS")
@@ -77,20 +67,16 @@ func main() {
 	bI18n.MustLoadMessageFile("./i18n/en.json")
 	bI18n.MustLoadMessageFile("./i18n/id.json")
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     rUrl,
-		Password: rPass,
-		DB:       0,
-	})
-	defer rdb.Close()
-	log.Info("app - redis initialized")
-
-	_ = postgres.New(&postgres.Options{
+	pg := postgres.New(&postgres.Options{
 		Url: cfg.Postgre.Url,
 	})
 	log.Info("app - postgres initialized")
 
-	_ = twilio.New(twSID, twToken, twServiceSID)
+	twl := twilio.New(&twilio.Options{
+		SID:        twSID,
+		Token:      twToken,
+		ServiceSID: twServiceSID,
+	})
 	log.Info("app - twilio initialized")
 
 	jwt := j.NewRSA(&j.Options{
@@ -100,24 +86,22 @@ func main() {
 		PublicKeyPath:        "./key_public.pem",
 	})
 
-	cap := true
-	// grpcUrl := ":" + cfg.GRPC.Port
+	captcha := true
 	g := gin.New(&gin.Options{
 		I18n:     bI18n,
 		Mode:     cfg.HTTP.Mode,
 		Version:  cfg.App.Version,
 		BaseUrl:  cfg.App.Name,
 		Log:      log,
-		AuthType: gin.AuthTypeRedis,
-		// if session from redis enable redis & jwt
-		Redis: rdb,
-		Jwt:   jwt,
-		// if session from another grpc service
-		// AuthService:  &grpcUrl,
-		AccessToken:  tAcIn,
-		RefreshToken: tRefIn,
-		Captcha:      &cap,
+		AuthType: gin.AuthTypeJwt,
+		// if auth type jwt
+		Jwt: jwt,
+		// if auth type grpc
+		// AuthService:  &cfg.Services[0].Url,
+		Captcha: &captcha,
 	})
+
+	module1.NewHttpV1(g, pg, twl)
 
 	httpServer := httpserver.New(g.Gin, &httpserver.Options{
 		Port: &cfg.HTTP.Port,

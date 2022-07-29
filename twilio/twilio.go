@@ -1,22 +1,41 @@
 package twilio
 
 import (
+	"log"
+
 	twl "github.com/twilio/twilio-go"
 	verify "github.com/twilio/twilio-go/rest/verify/v2"
 )
 
-type Twilio struct {
-	cln *twl.RestClient
-	ssi string
-}
+type (
+	Twilio struct {
+		cln *twl.RestClient
+		ssi string
+	}
+	Options struct {
+		SID        string
+		Token      string
+		ServiceSID string
+	}
+)
 
-func New(s string, tkn string, sid string) *Twilio {
+func New(o *Options) *Twilio {
+	if o.SID == "" {
+		log.Fatal("twilio - SID option not provided")
+	}
+	if o.Token == "" {
+		log.Fatal("twilio - Token option not provided")
+	}
+	if o.ServiceSID == "" {
+		log.Fatal("twilio - ServiceSID option not provided")
+	}
+
 	c := twl.NewRestClientWithParams(twl.ClientParams{
-		Username: s,
-		Password: tkn,
+		Username: o.SID,
+		Password: o.Token,
 	})
 
-	t := &Twilio{c, sid}
+	t := &Twilio{c, o.ServiceSID}
 	return t
 }
 

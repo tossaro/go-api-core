@@ -29,7 +29,7 @@ type (
 
 func New(o *Options) *Postgres {
 	if o.Url == "" {
-		log.Fatal("postgres - option url not found")
+		log.Fatal("postgres - URL option not provided")
 	}
 
 	poolConfig, err := pgxpool.ParseConfig(o.Url)

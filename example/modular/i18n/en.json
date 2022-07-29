@@ -1,0 +1,5 @@
+{
+    "unauthorized": "Unauthorized.",
+    "expired": "Your session has been ended. Please re-login.",
+    "missing_header": "Missing required header parameters."
+}

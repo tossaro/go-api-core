@@ -17,8 +17,6 @@ type (
 			Version string
 		}
 
-		Services []Service
-
 		HTTP struct {
 			Mode string
 			Port string
@@ -32,20 +30,12 @@ type (
 			Level string
 		}
 
-		Redis struct {
-			Url      string
-			Password string
-		}
-
 		Postgre struct {
 			Url     string
 			PoolMax int
 		}
 
-		TOKEN struct {
-			Access  int
-			Refresh int
-		}
+		Services []Service
 	}
 
 	Service struct {
@@ -100,18 +90,6 @@ func NewConfig(f string) (Config, logger.Interface) {
 	}
 	cfg.GRPC.Port = gPort
 
-	rUrl, ok := os.LookupEnv("REDIS_URL")
-	if !ok {
-		l.Error("env REDIS_URL not provided")
-	}
-	cfg.Redis.Url = rUrl
-
-	rPass, ok := os.LookupEnv("REDIS_PASSWORD")
-	if !ok {
-		l.Error("env REDIS_PASSWORD not provided")
-	}
-	cfg.Redis.Password = rPass
-
 	pUrl, ok := os.LookupEnv("POSTGRE_URL")
 	if !ok {
 		l.Error("env POSTGRE_URL not provided")
@@ -128,31 +106,11 @@ func NewConfig(f string) (Config, logger.Interface) {
 	}
 	cfg.Postgre.PoolMax = tPMIn
 
-	tAccess, ok := os.LookupEnv("TOKEN_ACCESS")
-	if !ok {
-		l.Error("env TOKEN_ACCESS not provided")
-	}
-	tAcIn, err := strconv.Atoi(tAccess)
-	if err != nil {
-		l.Error(fmt.Sprintf("convert TOKEN_ACCESS failed: %v", err))
-	}
-	cfg.TOKEN.Access = tAcIn
-
-	tRefresh, ok := os.LookupEnv("TOKEN_REFRESH")
-	if !ok {
-		l.Error("env TOKEN_REFRESH not provided")
-	}
-	tRefIn, err := strconv.Atoi(tRefresh)
-	if err != nil {
-		l.Error(fmt.Sprintf("convert TOKEN_REFRESH failed: %v", err))
-	}
-	cfg.TOKEN.Refresh = tRefIn
-
 	sAuth, ok := os.LookupEnv("SERVICE_AUTH_URL")
 	if !ok {
 		l.Error("env SERVICE_AUTH_URL not provided")
 	}
-	cfg.Services = append(cfg.Services, Service{"Auth", sAuth})
+	cfg.Services = append(cfg.Services, Service{sAuth, "Auth"})
 
 	return cfg, l
 }

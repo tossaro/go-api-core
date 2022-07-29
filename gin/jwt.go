@@ -3,23 +3,46 @@ package gin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	g "github.com/gin-gonic/gin"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 )
 
 func (gin *Gin) checkSessionFromJwt(c *g.Context, typ string) {
+	var err error
+	localizer := i18n.NewLocalizer(gin.Options.I18n, c.GetHeader("x-platform-lang"))
+	unauthorizedLoc, err := localizer.LocalizeMessage(&i18n.Message{ID: "unauthorized"})
+	expiredLoc, err := localizer.LocalizeMessage(&i18n.Message{ID: "expired"})
+	if err != nil {
+		gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error", "jwt-validate", err)
+		return
+	}
+
 	ah := c.GetHeader("Authorization")
 	sa := strings.Split(ah, " ")
 	if len(sa) != 2 {
-		gin.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "http-auth", nil)
+		err = errors.New("token malformed")
+		gin.ErrorResponse(c, http.StatusUnauthorized, unauthorizedLoc, "jwt-validate", err)
 		return
 	}
 	claims, err := gin.Jwt.Validate(sa[1])
-	if err != nil || typ != claims.Type {
-		gin.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "http-auth", err)
+	if err != nil {
+		status := http.StatusUnauthorized
+		message := unauthorizedLoc
+		if strings.Contains(err.Error(), "expired") {
+			status = http.StatusExpectationFailed
+			message = expiredLoc
+		}
+		gin.ErrorResponse(c, status, message, "jwt-validate", err)
+		return
+	}
+	if typ != claims.Type {
+		err = errors.New("token type missmatch")
+		gin.ErrorResponse(c, http.StatusUnauthorized, unauthorizedLoc, "jwt-validate", err)
 		return
 	}
 

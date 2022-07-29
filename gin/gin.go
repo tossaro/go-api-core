@@ -6,6 +6,7 @@ import (
 
 	g "github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 	prm "github.com/prometheus/client_golang/prometheus/promhttp"
 	sf "github.com/swaggo/files"
 	gsw "github.com/swaggo/gin-swagger"
@@ -38,6 +39,7 @@ type (
 	}
 
 	Options struct {
+		I18n         *i18n.Bundle
 		Mode         string
 		Version      string
 		BaseUrl      string
@@ -58,6 +60,9 @@ type (
 )
 
 func New(o *Options) *Gin {
+	if o.I18n == nil {
+		log.Fatal("gin - option i18n bundle not found")
+	}
 	if o.Mode == "" {
 		log.Fatal("gin - option mode not found")
 	}
@@ -81,6 +86,7 @@ func New(o *Options) *Gin {
 
 	var authClient *pAuth.AuthServiceV1Client
 	if o.AuthService != nil {
+		log.Printf(*o.AuthService)
 		conn, err := grpc.Dial(*o.AuthService, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			o.Log.Error("Gin init auth error: %s", err)
@@ -127,7 +133,7 @@ func headerCheck(gin *Gin) g.HandlerFunc {
 
 func (gin *Gin) ErrorResponse(c *g.Context, code int, msg string, iss string, err error) {
 	if err != nil {
-		gin.Options.Log.Error(iss, err)
+		gin.Options.Log.Error(iss + ": " + err.Error())
 	}
 	c.AbortWithStatusJSON(code, &Error{msg})
 }

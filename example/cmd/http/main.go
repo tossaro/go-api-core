@@ -1,11 +1,15 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 	core "github.com/tossaro/go-api-core"
 	_ "github.com/tossaro/go-api-core/example/docs"
 	"github.com/tossaro/go-api-core/gin"
@@ -13,6 +17,7 @@ import (
 	j "github.com/tossaro/go-api-core/jwt"
 	"github.com/tossaro/go-api-core/postgres"
 	"github.com/tossaro/go-api-core/twilio"
+	"golang.org/x/text/language"
 )
 
 // @title       API Core
@@ -21,6 +26,7 @@ import (
 // @host        localhost:8080
 // @BasePath    /go-api-core
 func main() {
+	var err error
 	cfg, log := core.NewConfig("./.env")
 
 	twSID, ok := os.LookupEnv("TWILIO_SID")
@@ -38,9 +44,42 @@ func main() {
 		log.Fatal("env TWILIO_SERVICE_SID not provided")
 	}
 
+	rUrl, ok := os.LookupEnv("REDIS_URL")
+	if !ok {
+		log.Error("env REDIS_URL not provided")
+	}
+
+	rPass, ok := os.LookupEnv("REDIS_PASSWORD")
+	if !ok {
+		log.Error("env REDIS_PASSWORD not provided")
+	}
+
+	tAccess, ok := os.LookupEnv("TOKEN_ACCESS")
+	if !ok {
+		log.Error("env TOKEN_ACCESS not provided")
+	}
+	tAcIn, err := strconv.Atoi(tAccess)
+	if err != nil {
+		log.Error(fmt.Sprintf("convert TOKEN_ACCESS failed: %v", err))
+	}
+
+	tRefresh, ok := os.LookupEnv("TOKEN_REFRESH")
+	if !ok {
+		log.Error("env TOKEN_REFRESH not provided")
+	}
+	tRefIn, err := strconv.Atoi(tRefresh)
+	if err != nil {
+		log.Error(fmt.Sprintf("convert TOKEN_REFRESH failed: %v", err))
+	}
+
+	bI18n := i18n.NewBundle(language.English)
+	bI18n.RegisterUnmarshalFunc("json", json.Unmarshal)
+	bI18n.MustLoadMessageFile("./i18n/en.json")
+	bI18n.MustLoadMessageFile("./i18n/id.json")
+
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     cfg.Redis.Url,
-		Password: cfg.Redis.Password,
+		Addr:     rUrl,
+		Password: rPass,
 		DB:       0,
 	})
 	defer rdb.Close()
@@ -55,8 +94,8 @@ func main() {
 	log.Info("app - twilio initialized")
 
 	jwt := j.NewRSA(&j.Options{
-		AccessTokenLifetime:  cfg.TOKEN.Access,
-		RefreshTokenLifetime: cfg.TOKEN.Refresh,
+		AccessTokenLifetime:  tAcIn,
+		RefreshTokenLifetime: tRefIn,
 		PrivateKeyPath:       "./key_private.pem",
 		PublicKeyPath:        "./key_public.pem",
 	})
@@ -64,6 +103,7 @@ func main() {
 	cap := true
 	// grpcUrl := ":" + cfg.GRPC.Port
 	g := gin.New(&gin.Options{
+		I18n:     bI18n,
 		Mode:     cfg.HTTP.Mode,
 		Version:  cfg.App.Version,
 		BaseUrl:  cfg.App.Name,
@@ -74,8 +114,8 @@ func main() {
 		Jwt:   jwt,
 		// if session from another grpc service
 		// AuthService:  &grpcUrl,
-		AccessToken:  cfg.TOKEN.Access,
-		RefreshToken: cfg.TOKEN.Refresh,
+		AccessToken:  tAcIn,
+		RefreshToken: tRefIn,
 		Captcha:      &cap,
 	})
 
@@ -86,7 +126,6 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
-	var err error
 	select {
 	case s := <-interrupt:
 		log.Info("app - signal: " + s.String())

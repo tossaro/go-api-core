@@ -100,11 +100,13 @@ func NewConfig(f string) (Config, logger.Interface) {
 	if !ok {
 		l.Error("env POSTGRE_POOL_MAX not provided")
 	}
-	tPMIn, err := strconv.Atoi(pPoolMax)
-	if err != nil {
-		l.Error(fmt.Sprintf("convert POSTGRE_POOL_MAX failed: %v", err))
+	if pPoolMax != "" {
+		tPMIn, err := strconv.Atoi(pPoolMax)
+		if err != nil {
+			l.Error(fmt.Sprintf("convert POSTGRE_POOL_MAX failed: %v", err))
+		}
+		cfg.Postgre.PoolMax = tPMIn
 	}
-	cfg.Postgre.PoolMax = tPMIn
 
 	sAuth, ok := os.LookupEnv("SERVICE_AUTH_URL")
 	if !ok {

@@ -1,5 +1,17 @@
+basePath: /go-api-core
+definitions:
+  gin.Error:
+    properties:
+      error:
+        example: message
+        type: string
+    type: object
+host: localhost:8888
 info:
   contact: {}
+  description: API Core
+  title: API Core
+  version: 1.0.0
 paths:
   /captcha/v1/generate:
     get:
@@ -45,6 +57,48 @@ paths:
       summary: Show Captcha Image
       tags:
       - Captcha
+  /module1/api1:
+    get:
+      consumes:
+      - application/json
+      description: Provide API 1
+      operationId: api1
+      parameters:
+      - description: Client Request Lang
+        enum:
+        - EN
+        - ID
+        in: header
+        name: x-request-lang
+        required: true
+        type: string
+      - description: Request Key
+        in: header
+        name: x-request-key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/gin.Error'
+        "417":
+          description: Expectation Failed
+          schema:
+            $ref: '#/definitions/gin.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/gin.Error'
+      summary: API 1
+      tags:
+      - Module 1
   /version:
     get:
       consumes:

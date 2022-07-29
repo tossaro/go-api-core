@@ -29,9 +29,6 @@ func (gin *Gin) checkSessionFromGrpc(c *g.Context, typ string) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
 	ah := c.GetHeader("Authorization")
 	sa := strings.Split(ah, " ")
 	if len(sa) != 2 {
@@ -45,6 +42,9 @@ func (gin *Gin) checkSessionFromGrpc(c *g.Context, typ string) {
 		gin.Options.Log.Error("Gin init auth error: %s", err)
 	}
 	defer conn.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
 	svc := pAuth.NewAuthServiceV1Client(conn)
 	r, err := svc.CheckV1(ctx, &pAuth.AuthRequestV1{Token: sa[1], Type: typ})

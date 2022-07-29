@@ -82,6 +82,68 @@ const docTemplate = `{
                 }
             }
         },
+        "/module1/api1": {
+            "get": {
+                "description": "Provide API 1",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Module 1"
+                ],
+                "summary": "API 1",
+                "operationId": "api1",
+                "parameters": [
+                    {
+                        "enum": [
+                            "EN",
+                            "ID"
+                        ],
+                        "type": "string",
+                        "description": "Client Request Lang",
+                        "name": "x-request-lang",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Request Key",
+                        "name": "x-request-key",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/gin.Error"
+                        }
+                    },
+                    "417": {
+                        "description": "Expectation Failed",
+                        "schema": {
+                            "$ref": "#/definitions/gin.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/gin.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/version": {
             "get": {
                 "description": "Get Version",
@@ -106,17 +168,28 @@ const docTemplate = `{
                 }
             }
         }
+    },
+    "definitions": {
+        "gin.Error": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "message"
+                }
+            }
+        }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
-	Host:             "",
-	BasePath:         "",
+	Version:          "1.0.0",
+	Host:             "localhost:8888",
+	BasePath:         "/go-api-core",
 	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	Title:            "API Core",
+	Description:      "API Core",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 }

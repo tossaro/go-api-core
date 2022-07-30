@@ -16,7 +16,6 @@ import (
 	"github.com/tossaro/go-api-core/httpserver"
 	j "github.com/tossaro/go-api-core/jwt"
 	"github.com/tossaro/go-api-core/postgres"
-	"github.com/tossaro/go-api-core/twilio"
 	"golang.org/x/text/language"
 )
 
@@ -29,37 +28,33 @@ func main() {
 	var err error
 	cfg, log := core.NewConfig("./.env")
 
-	twSID, ok := os.LookupEnv("TWILIO_SID")
-	if !ok {
-		log.Fatal("env TWILIO_SID not provided")
-	}
-
-	twToken, ok := os.LookupEnv("TWILIO_TOKEN")
-	if !ok {
-		log.Fatal("env TWILIO_TOKEN not provided")
-	}
-
-	twServiceSID, ok := os.LookupEnv("TWILIO_SERVICE_SID")
-	if !ok {
-		log.Fatal("env TWILIO_SERVICE_SID not provided")
-	}
-
 	tAccess, ok := os.LookupEnv("TOKEN_ACCESS")
 	if !ok {
-		log.Error("env TOKEN_ACCESS not provided")
+		log.Fatal("env TOKEN_ACCESS not provided")
 	}
 	tAcIn, err := strconv.Atoi(tAccess)
 	if err != nil {
-		log.Error(fmt.Sprintf("convert TOKEN_ACCESS failed: %v", err))
+		log.Fatal(fmt.Sprintf("convert TOKEN_ACCESS failed: %v", err))
 	}
-
 	tRefresh, ok := os.LookupEnv("TOKEN_REFRESH")
 	if !ok {
-		log.Error("env TOKEN_REFRESH not provided")
+		log.Fatal("env TOKEN_REFRESH not provided")
 	}
 	tRefIn, err := strconv.Atoi(tRefresh)
 	if err != nil {
-		log.Error(fmt.Sprintf("convert TOKEN_REFRESH failed: %v", err))
+		log.Fatal(fmt.Sprintf("convert TOKEN_REFRESH failed: %v", err))
+	}
+	pUrl, ok := os.LookupEnv("POSTGRE_URL")
+	if !ok {
+		log.Fatal("env POSTGRE_URL not provided")
+	}
+	pPoolMax, ok := os.LookupEnv("POSTGRE_POOL_MAX")
+	if !ok {
+		log.Fatal("env POSTGRE_POOL_MAX not provided")
+	}
+	pPoolMaxIn, err := strconv.Atoi(pPoolMax)
+	if err != nil {
+		log.Fatal(fmt.Sprintf("convert POSTGRE_POOL_MAX failed: %v", err))
 	}
 
 	bI18n := i18n.NewBundle(language.English)
@@ -68,16 +63,10 @@ func main() {
 	bI18n.MustLoadMessageFile("./i18n/id.json")
 
 	pg := postgres.New(&postgres.Options{
-		Url: cfg.Postgre.Url,
+		Url:     pUrl,
+		PoolMax: &pPoolMaxIn,
 	})
 	log.Info("app - postgres initialized")
-
-	twl := twilio.New(&twilio.Options{
-		SID:        twSID,
-		Token:      twToken,
-		ServiceSID: twServiceSID,
-	})
-	log.Info("app - twilio initialized")
 
 	jwt := j.NewRSA(&j.Options{
 		AccessTokenLifetime:  tAcIn,
@@ -101,7 +90,7 @@ func main() {
 		Captcha: &captcha,
 	})
 
-	module1.NewHttpV1(g, pg, twl)
+	module1.NewHttpV1(g, pg)
 
 	httpServer := httpserver.New(g.Gin, &httpserver.Options{
 		Port: &cfg.HTTP.Port,

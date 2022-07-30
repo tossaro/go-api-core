@@ -6,17 +6,15 @@ import (
 	g "github.com/gin-gonic/gin"
 	"github.com/tossaro/go-api-core/gin"
 	"github.com/tossaro/go-api-core/postgres"
-	"github.com/tossaro/go-api-core/twilio"
 )
 
 type httpV1 struct {
 	gin *gin.Gin
 	pg  *postgres.Postgres
-	twl *twilio.Twilio
 }
 
-func NewHttpV1(g *gin.Gin, pg *postgres.Postgres, twl *twilio.Twilio) {
-	m := &httpV1{g, pg, twl}
+func NewHttpV1(g *gin.Gin, pg *postgres.Postgres) {
+	m := &httpV1{g, pg}
 	h := g.Router.Group("module1")
 	{
 		h.GET("api1", m.api1)

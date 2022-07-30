@@ -6,31 +6,37 @@ import (
 	"net/http"
 
 	g "github.com/gin-gonic/gin"
+	core "github.com/tossaro/go-api-core"
 	"github.com/tossaro/go-api-core/gin"
 	"github.com/tossaro/go-api-core/postgres"
 )
 
 type httpV1 struct {
 	gin *gin.Gin
+	cfg core.Config
 	pg  *postgres.Postgres
 }
 
 func NewHttpV1(args []interface{}) {
-	if len(args) < 2 {
-		log.Fatal("auth httpv1 args must be 2 but got: ", len(args))
-	}
-
 	var g *gin.Gin
-	if fmt.Sprintf("%T", args[0]) == "*gin.Gin" {
-		g = args[0].(*gin.Gin)
-	}
-
+	var cfg core.Config
 	var pg *postgres.Postgres
-	if fmt.Sprintf("%T", args[0]) == "*postgres.Postgres" {
-		pg = args[0].(*postgres.Postgres)
+	for _, a := range args {
+		switch fmt.Sprintf("%T", a) {
+		case "*gin.Gin":
+			g = a.(*gin.Gin)
+		case "core.Config":
+			cfg = a.(core.Config)
+		case "*postgres.Postgres":
+			pg = a.(*postgres.Postgres)
+		}
 	}
 
-	m := &httpV1{g, pg}
+	if g == nil || cfg.App.Name == "" || pg == nil {
+		log.Fatal("Auth args incomplete: ", g, cfg, pg)
+	}
+
+	m := &httpV1{g, cfg, pg}
 	h := g.Router.Group("module1")
 	{
 		h.GET("api1", m.api1)

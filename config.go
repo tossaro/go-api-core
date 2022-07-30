@@ -1,10 +1,8 @@
 package core
 
 import (
-	"fmt"
 	"log"
 	"os"
-	"strconv"
 
 	"github.com/joho/godotenv"
 	"github.com/tossaro/go-api-core/logger"
@@ -29,18 +27,6 @@ type (
 		Log struct {
 			Level string
 		}
-
-		Postgre struct {
-			Url     string
-			PoolMax int
-		}
-
-		Services []Service
-	}
-
-	Service struct {
-		Url  string
-		Name string
 	}
 )
 
@@ -89,30 +75,6 @@ func NewConfig(f string) (Config, logger.Interface) {
 		l.Error("env GRPC_PORT not provided")
 	}
 	cfg.GRPC.Port = gPort
-
-	pUrl, ok := os.LookupEnv("POSTGRE_URL")
-	if !ok {
-		l.Error("env POSTGRE_URL not provided")
-	}
-	cfg.Postgre.Url = pUrl
-
-	pPoolMax, ok := os.LookupEnv("POSTGRE_POOL_MAX")
-	if !ok {
-		l.Error("env POSTGRE_POOL_MAX not provided")
-	}
-	if pPoolMax != "" {
-		tPMIn, err := strconv.Atoi(pPoolMax)
-		if err != nil {
-			l.Error(fmt.Sprintf("convert POSTGRE_POOL_MAX failed: %v", err))
-		}
-		cfg.Postgre.PoolMax = tPMIn
-	}
-
-	sAuth, ok := os.LookupEnv("SERVICE_AUTH_URL")
-	if !ok {
-		l.Error("env SERVICE_AUTH_URL not provided")
-	}
-	cfg.Services = append(cfg.Services, Service{sAuth, "Auth"})
 
 	return cfg, l
 }

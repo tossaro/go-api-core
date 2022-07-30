@@ -20,6 +20,7 @@ type (
 		Config         Config
 		Log            logger.Interface
 		AuthType       string
+		AuthUrl        *string
 		PrivateKeyPath *string
 		PublicKeyPath  *string
 		I18n           *i18n.Bundle
@@ -54,10 +55,10 @@ func NewHttp(o Options) {
 	}
 
 	if o.AuthType == gin.AuthTypeGrpc {
-		if len(o.Config.Services) == 0 {
+		if o.AuthUrl == nil {
 			o.Log.Fatal("core - auth type grpc require auth service url")
 		}
-		gOpt.AuthService = &o.Config.Services[0].Url
+		gOpt.AuthService = o.AuthUrl
 	} else if o.AuthType == gin.AuthTypeJwt {
 		if o.PrivateKeyPath == nil || o.PublicKeyPath == nil {
 			o.Log.Fatal("core - auth type jwt require private and public key")

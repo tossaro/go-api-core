@@ -28,7 +28,7 @@ type (
 		RefreshTokenLifetime int
 	}
 
-	TokenClaims struct {
+	TokenClaimsV1 struct {
 		UID  uint64
 		Type string
 		Key  *string
@@ -74,14 +74,14 @@ func NewRSA(o *Options) *Jwt {
 }
 
 func (jwt *Jwt) generateToken(typ string, exp int, uid uint64, key *string, iss string) (string, error) {
-	c := TokenClaims{
+	c := TokenClaimsV1{
 		uid,
 		typ,
 		key,
 		j.RegisteredClaims{
 			Issuer:    iss,
 			IssuedAt:  j.NewNumericDate(time.Now()),
-			ExpiresAt: j.NewNumericDate(time.Now().Add(time.Minute * time.Duration(jwt.Options.AccessTokenLifetime))),
+			ExpiresAt: j.NewNumericDate(time.Now().Add(time.Minute * time.Duration(exp))),
 		},
 	}
 	token := j.NewWithClaims(j.SigningMethodRS256, c)
@@ -89,7 +89,7 @@ func (jwt *Jwt) generateToken(typ string, exp int, uid uint64, key *string, iss 
 }
 
 func (jwt *Jwt) AccessToken(uid uint64, iss string) (*string, error) {
-	tk, err := jwt.generateToken("access", jwt.Options.RefreshTokenLifetime, uid, nil, iss)
+	tk, err := jwt.generateToken("access", jwt.Options.AccessTokenLifetime, uid, nil, iss)
 	if err != nil {
 		return nil, err
 	}
@@ -108,8 +108,8 @@ func (jwt *Jwt) RefreshToken(uid uint64, iss string) (*string, *string, error) {
 	return &tk, &hk, nil
 }
 
-func (jwt *Jwt) Validate(t string) (*TokenClaims, error) {
-	token, err := j.ParseWithClaims(t, &TokenClaims{}, func(token *j.Token) (interface{}, error) {
+func (jwt *Jwt) Validate(t string) (*TokenClaimsV1, error) {
+	token, err := j.ParseWithClaims(t, &TokenClaimsV1{}, func(token *j.Token) (interface{}, error) {
 		if _, ok := token.Method.(*j.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method in auth token")
 		}
@@ -120,7 +120,7 @@ func (jwt *Jwt) Validate(t string) (*TokenClaims, error) {
 		return nil, fmt.Errorf("error parse claims: %v", err)
 	}
 
-	claims, ok := token.Claims.(*TokenClaims)
+	claims, ok := token.Claims.(*TokenClaimsV1)
 	if !ok || !token.Valid || claims.UID == 0 {
 		return nil, fmt.Errorf("invalid token or missing uid")
 	}

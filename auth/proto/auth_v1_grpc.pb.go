@@ -22,7 +22,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AuthServiceV1Client interface {
-	CheckV1(ctx context.Context, in *AuthRequestV1, opts ...grpc.CallOption) (*AuthResponseV1, error)
+	CheckV1(ctx context.Context, in *CheckReqV1, opts ...grpc.CallOption) (*TokenClaimsV1, error)
 }
 
 type authServiceV1Client struct {
@@ -33,8 +33,8 @@ func NewAuthServiceV1Client(cc grpc.ClientConnInterface) AuthServiceV1Client {
 	return &authServiceV1Client{cc}
 }
 
-func (c *authServiceV1Client) CheckV1(ctx context.Context, in *AuthRequestV1, opts ...grpc.CallOption) (*AuthResponseV1, error) {
-	out := new(AuthResponseV1)
+func (c *authServiceV1Client) CheckV1(ctx context.Context, in *CheckReqV1, opts ...grpc.CallOption) (*TokenClaimsV1, error) {
+	out := new(TokenClaimsV1)
 	err := c.cc.Invoke(ctx, "/authServiceV1/CheckV1", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -46,7 +46,7 @@ func (c *authServiceV1Client) CheckV1(ctx context.Context, in *AuthRequestV1, op
 // All implementations must embed UnimplementedAuthServiceV1Server
 // for forward compatibility
 type AuthServiceV1Server interface {
-	CheckV1(context.Context, *AuthRequestV1) (*AuthResponseV1, error)
+	CheckV1(context.Context, *CheckReqV1) (*TokenClaimsV1, error)
 	mustEmbedUnimplementedAuthServiceV1Server()
 }
 
@@ -54,7 +54,7 @@ type AuthServiceV1Server interface {
 type UnimplementedAuthServiceV1Server struct {
 }
 
-func (UnimplementedAuthServiceV1Server) CheckV1(context.Context, *AuthRequestV1) (*AuthResponseV1, error) {
+func (UnimplementedAuthServiceV1Server) CheckV1(context.Context, *CheckReqV1) (*TokenClaimsV1, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CheckV1 not implemented")
 }
 func (UnimplementedAuthServiceV1Server) mustEmbedUnimplementedAuthServiceV1Server() {}
@@ -71,7 +71,7 @@ func RegisterAuthServiceV1Server(s grpc.ServiceRegistrar, srv AuthServiceV1Serve
 }
 
 func _AuthServiceV1_CheckV1_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AuthRequestV1)
+	in := new(CheckReqV1)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func _AuthServiceV1_CheckV1_Handler(srv interface{}, ctx context.Context, dec fu
 		FullMethod: "/authServiceV1/CheckV1",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceV1Server).CheckV1(ctx, req.(*AuthRequestV1))
+		return srv.(AuthServiceV1Server).CheckV1(ctx, req.(*CheckReqV1))
 	}
 	return interceptor(ctx, in, info, handler)
 }

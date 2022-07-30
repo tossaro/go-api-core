@@ -47,7 +47,7 @@ func (gin *Gin) checkSessionFromGrpc(c *g.Context, typ string) {
 	defer cancel()
 
 	svc := pAuth.NewAuthServiceV1Client(conn)
-	r, err := svc.CheckV1(ctx, &pAuth.AuthRequestV1{Token: sa[1], Type: typ})
+	r, err := svc.CheckV1(ctx, &pAuth.CheckReqV1{Token: sa[1], Type: typ})
 	if err != nil {
 		status := http.StatusUnauthorized
 		message := unauthorizedLoc
@@ -59,7 +59,7 @@ func (gin *Gin) checkSessionFromGrpc(c *g.Context, typ string) {
 		return
 	}
 
-	ctx2 := context.WithValue(c.Request.Context(), CKey("user_id"), r.GetUID())
+	ctx2 := context.WithValue(c.Request.Context(), CKey("user_id"), r.GetUid())
 	if typ == "refresh" && r.GetKey() != "" {
 		ctx2 = context.WithValue(ctx2, CKey("user_key"), r.GetKey())
 	}

@@ -9,9 +9,11 @@ import (
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 
 	core "github.com/tossaro/go-api-core"
+	"github.com/tossaro/go-api-core/config"
 	_ "github.com/tossaro/go-api-core/example/modular/docs"
-	"github.com/tossaro/go-api-core/example/modular/internal/module1"
+	"github.com/tossaro/go-api-core/example/modular/internal/http"
 	"github.com/tossaro/go-api-core/gin"
+	"github.com/tossaro/go-api-core/logger"
 	"github.com/tossaro/go-api-core/postgres"
 	"golang.org/x/text/language"
 )
@@ -22,7 +24,8 @@ import (
 // @host        localhost:8888
 // @BasePath    /go-api-core
 func main() {
-	config, log := core.NewConfig("./.env")
+	cfg := config.New()
+	log := logger.New(cfg)
 
 	pUrl, ok := os.LookupEnv("POSTGRE_URL")
 	if !ok {
@@ -48,18 +51,28 @@ func main() {
 	})
 	log.Info("app - postgres initialized")
 
+	modules := []func([]interface{}){
+		http.NewModule1V1,
+	}
+
+	params := append(
+		make([]interface{}, 0),
+		cfg,
+		pg,
+	)
+
 	captcha := true
 	privateKeyPath := "./key_private.pem"
 	publicKeyPath := "./key_public.pem"
 	core.NewHttp(core.Options{
-		Config:         config,
+		Config:         cfg,
 		Log:            log,
 		PrivateKeyPath: &privateKeyPath,
 		PublicKeyPath:  &publicKeyPath,
 		AuthType:       gin.AuthTypeJwt,
 		I18n:           bI18n,
 		Captcha:        &captcha,
-		Modules:        []func([]interface{}){module1.NewHttpV1},
-		ModuleParams:   append(make([]interface{}, 0), config, pg),
+		Modules:        modules,
+		ModuleParams:   params,
 	})
 }

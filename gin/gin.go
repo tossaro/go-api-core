@@ -9,9 +9,11 @@ import (
 	prm "github.com/prometheus/client_golang/prometheus/promhttp"
 	sf "github.com/swaggo/files"
 	gsw "github.com/swaggo/gin-swagger"
-	"github.com/tossaro/go-api-core/captcha"
-	j "github.com/tossaro/go-api-core/jwt"
-	"github.com/tossaro/go-api-core/logger"
+	ch "github.com/tossaro/go-api-core/http"
+	cj "github.com/tossaro/go-api-core/jwt"
+	cl "github.com/tossaro/go-api-core/logger"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmgin"
 )
 
 const (
@@ -29,7 +31,7 @@ type (
 	Gin struct {
 		Gin    *g.Engine
 		Router *g.RouterGroup
-		Jwt    *j.Jwt
+		Jwt    *cj.Jwt
 		*Options
 	}
 
@@ -38,10 +40,10 @@ type (
 		Mode        string
 		Version     string
 		BaseUrl     string
-		Log         logger.Interface
+		Log         cl.Interface
 		AuthType    string
 		AuthService *string
-		Jwt         *j.Jwt
+		Jwt         *cj.Jwt
 		Captcha     *bool
 	}
 
@@ -78,54 +80,56 @@ func New(o *Options) *Gin {
 	}
 
 	g.SetMode(o.Mode)
-	gEngine := g.New()
-	gEngine.Use(g.Logger())
-	gEngine.Use(g.Recovery())
+	r := g.Default()
+	r.Use(apmgin.Middleware(r))
 
-	gin := &Gin{gEngine, nil, o.Jwt, o}
+	gin := &Gin{r, nil, o.Jwt, o}
 
-	gRouter := gEngine.Group(o.BaseUrl)
+	gRouter := r.Group(o.BaseUrl)
 	{
 		gRouter.GET("/version", gin.version)
 		gRouter.GET("/metrics", g.WrapH(prm.Handler()))
 		gRouter.GET("/swagger/*any", gsw.DisablingWrapHandler(sf.Handler, "HTTP_SWAGGER_DISABLED"))
 
 		if o.Captcha != nil && *(o.Captcha) {
-			captcha.New(gRouter, o.Log)
+			ch.NewCaptchaV1(gRouter, o.Log)
 		}
 	}
 
-	gRouter.Use(headerCheck(gin))
+	gRouter.Use(validateHeader(gin))
 	gin.Router = gRouter
 	return gin
 }
 
-func headerCheck(gin *Gin) g.HandlerFunc {
+func validateHeader(gin *Gin) g.HandlerFunc {
 	return func(c *g.Context) {
+		span, _ := apm.StartSpan(c.Request.Context(), "ValidateHeader", "custom")
+		defer span.End()
+
 		localizer := i18n.NewLocalizer(gin.Options.I18n, c.GetHeader("x-request-lang"))
 		missHeader, err := localizer.LocalizeMessage(&i18n.Message{ID: "missing_header"})
 		if err != nil {
-			gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error", "jwt-validate", err)
+			gin.Options.Log.Error("jwt-validate", err)
+			gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 			return
 		}
 		l := c.GetHeader("x-request-lang")
 		if l == "" {
-			gin.ErrorResponse(c, http.StatusBadRequest, missHeader, "http-auth", nil)
+			gin.ErrorResponse(c, http.StatusBadRequest, missHeader)
 			return
 		}
 
 		p := c.GetHeader("x-request-key")
 		if p == "" {
-			gin.ErrorResponse(c, http.StatusBadRequest, missHeader, "http-auth", nil)
+			gin.ErrorResponse(c, http.StatusBadRequest, missHeader)
 			return
 		}
 	}
 }
 
-func (gin *Gin) ErrorResponse(c *g.Context, code int, msg string, iss string, err error) {
-	if err != nil {
-		gin.Options.Log.Error(iss + ": " + err.Error())
-	}
+func (gin *Gin) ErrorResponse(c *g.Context, code int, msg string) {
+	span, _ := apm.StartSpan(c.Request.Context(), "ErrorResponse", "error")
+	defer span.End()
 	c.AbortWithStatusJSON(code, &Error{msg})
 }
 
@@ -139,11 +143,13 @@ func (gin *Gin) AuthRefreshMiddleware() g.HandlerFunc {
 
 func (gin *Gin) authCheck(typ string) g.HandlerFunc {
 	return func(c *g.Context) {
-		if gin.Options.AuthType == AuthTypeGrpc {
+		switch gin.Options.AuthType {
+		case AuthTypeGrpc:
 			gin.checkSessionFromGrpc(c, typ)
-		}
-		if gin.Options.AuthType == AuthTypeJwt {
+		case AuthTypeJwt:
 			gin.checkSessionFromJwt(c, typ)
+		default:
+			gin.checkSessionFromGrpc(c, typ)
 		}
 	}
 }
@@ -157,5 +163,7 @@ func (gin *Gin) authCheck(typ string) g.HandlerFunc {
 // @Success     200 {string} v1.0.0
 // @Router      /version [get]
 func (gin *Gin) version(c *g.Context) {
+	span, _ := apm.StartSpan(c.Request.Context(), "version", "request")
+	defer span.End()
 	c.JSON(http.StatusOK, gin.Options.Version)
 }

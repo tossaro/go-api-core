@@ -9,12 +9,13 @@ import (
 	"syscall"
 
 	"github.com/nicksnyder/go-i18n/v2/i18n"
-	core "github.com/tossaro/go-api-core"
+	"github.com/tossaro/go-api-core/config"
 	_ "github.com/tossaro/go-api-core/example/manual/docs"
-	"github.com/tossaro/go-api-core/example/manual/internal/module1"
+	"github.com/tossaro/go-api-core/example/manual/internal/http"
 	"github.com/tossaro/go-api-core/gin"
 	"github.com/tossaro/go-api-core/httpserver"
 	j "github.com/tossaro/go-api-core/jwt"
+	"github.com/tossaro/go-api-core/logger"
 	"github.com/tossaro/go-api-core/postgres"
 	"golang.org/x/text/language"
 )
@@ -26,7 +27,8 @@ import (
 // @BasePath    /go-api-core
 func main() {
 	var err error
-	cfg, log := core.NewConfig("./.env")
+	cfg := config.New()
+	log := logger.New(cfg)
 
 	tAccess, ok := os.LookupEnv("TOKEN_ACCESS")
 	if !ok {
@@ -90,7 +92,7 @@ func main() {
 		Captcha: &captcha,
 	})
 
-	module1.NewHttpV1(g, pg)
+	http.NewModule1V1(g, pg)
 
 	httpServer := httpserver.New(g.Gin, &httpserver.Options{
 		Port: &cfg.HTTP.Port,

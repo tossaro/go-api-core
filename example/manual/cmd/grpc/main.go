@@ -3,8 +3,9 @@ package main
 import (
 	"net"
 
-	core "github.com/tossaro/go-api-core"
 	pAuth "github.com/tossaro/go-api-core/auth/proto"
+	"github.com/tossaro/go-api-core/config"
+	"github.com/tossaro/go-api-core/logger"
 	"google.golang.org/grpc"
 )
 
@@ -15,7 +16,8 @@ type (
 )
 
 func main() {
-	cfg, log := core.NewConfig("./.env")
+	cfg := config.New()
+	log := logger.New(cfg)
 
 	conn, err := net.Listen("tcp", ":"+cfg.GRPC.Port)
 	if err != nil {

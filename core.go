@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/nicksnyder/go-i18n/v2/i18n"
+	"github.com/tossaro/go-api-core/config"
 	"github.com/tossaro/go-api-core/gin"
 	"github.com/tossaro/go-api-core/httpserver"
 	j "github.com/tossaro/go-api-core/jwt"
@@ -17,7 +18,7 @@ import (
 
 type (
 	Options struct {
-		Config         Config
+		Config         config.Config
 		Log            logger.Interface
 		AuthType       string
 		AuthUrl        *string
@@ -94,7 +95,6 @@ func NewHttp(o Options) {
 	g := gin.New(&gOpt)
 	params := append(make([]interface{}, 0), g)
 	params = append(params, o.ModuleParams...)
-	l.Print(len(params))
 	for _, module := range o.Modules {
 		module(params)
 	}

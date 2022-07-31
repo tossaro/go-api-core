@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog"
+	"github.com/tossaro/go-api-core/config"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type Interface interface {
@@ -22,10 +24,10 @@ type Logger struct {
 
 var _ Interface = (*Logger)(nil)
 
-func New(level string) *Logger {
+func New(cfg config.Config) *Logger {
 	var l zerolog.Level
 
-	switch strings.ToLower(level) {
+	switch strings.ToLower(cfg.Log.Level) {
 	case "error":
 		l = zerolog.ErrorLevel
 	case "warn":
@@ -39,9 +41,21 @@ func New(level string) *Logger {
 	}
 
 	zerolog.SetGlobalLevel(l)
-
+	var logger zerolog.Logger
+	switch cfg.Log.Type {
+	case config.LogTypeFile:
+		logger = zerolog.New(&lumberjack.Logger{
+			Filename:   cfg.Log.FileName,
+			MaxSize:    cfg.Log.MaxSize,
+			MaxAge:     cfg.Log.MaxAge,
+			MaxBackups: cfg.Log.MaxBackups,
+			Compress:   cfg.Log.Compress,
+		})
+	default:
+		logger = zerolog.New(os.Stdout)
+	}
 	skipFrameCount := 3
-	logger := zerolog.New(os.Stdout).With().Timestamp().CallerWithSkipFrameCount(zerolog.CallerSkipFrameCount + skipFrameCount).Logger()
+	logger = logger.With().Timestamp().CallerWithSkipFrameCount(zerolog.CallerSkipFrameCount + skipFrameCount).Logger()
 
 	return &Logger{
 		logger: &logger,

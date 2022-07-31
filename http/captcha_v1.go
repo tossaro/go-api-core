@@ -1,4 +1,4 @@
-package captcha
+package http
 
 import (
 	"net/http"
@@ -9,7 +9,7 @@ import (
 )
 
 type (
-	httpV1 struct {
+	captchaV1 struct {
 		r *gin.RouterGroup
 		l logger.Interface
 	}
@@ -19,8 +19,8 @@ type (
 	}
 )
 
-func New(r *gin.RouterGroup, l logger.Interface) {
-	a := &httpV1{r, l}
+func NewCaptchaV1(r *gin.RouterGroup, l logger.Interface) {
+	a := &captchaV1{r, l}
 	rc := r.Group("/captcha/v1")
 	{
 		rc.GET("/generate", a.captchaGenerateV1)
@@ -28,10 +28,7 @@ func New(r *gin.RouterGroup, l logger.Interface) {
 	}
 }
 
-func (a *httpV1) ErrorResponse(c *gin.Context, code int, msg string, iss string, err error) {
-	if err != nil {
-		a.l.Error(err, iss)
-	}
+func (a *captchaV1) ErrorResponse(c *gin.Context, code int, msg string) {
 	c.AbortWithStatusJSON(code, &Error{msg})
 }
 
@@ -43,7 +40,7 @@ func (a *httpV1) ErrorResponse(c *gin.Context, code int, msg string, iss string,
 // @Produce     json
 // @Success     200 {string} 1a2b3c4d5e
 // @Router      /captcha/v1/generate [get]
-func (a *httpV1) captchaGenerateV1(c *gin.Context) {
+func (a *captchaV1) captchaGenerateV1(c *gin.Context) {
 	c.JSON(http.StatusOK, captcha.NewLen(6))
 }
 
@@ -58,17 +55,19 @@ func (a *httpV1) captchaGenerateV1(c *gin.Context) {
 // @Failure     204 {string} Message
 // @Failure     400 {string} Message
 // @Router      /captcha/v1/image/{id} [get]
-func (a *httpV1) captchaImageV1(c *gin.Context) {
+func (a *captchaV1) captchaImageV1(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
 		err := captcha.ErrNotFound
-		a.ErrorResponse(c, http.StatusBadRequest, "captha error", "http-captchaImageV1", err)
+		a.l.Error("http-captchaImageV1", err)
+		a.ErrorResponse(c, http.StatusBadRequest, "captha error")
 		return
 	}
 	c.Set("Content-Type", "image/png")
 	err := captcha.WriteImage(c.Writer, id, 120, 80)
 	if err != nil {
-		a.ErrorResponse(c, http.StatusBadRequest, "captha error", "http-captchaImageV1", err)
+		a.l.Error("http-captchaImageV1", err)
+		a.ErrorResponse(c, http.StatusBadRequest, "captha error")
 		return
 	}
 }

@@ -15,12 +15,14 @@ func (gin *Gin) checkSessionFromJwt(c *g.Context, typ string) {
 	localizer := i18n.NewLocalizer(gin.Options.I18n, c.GetHeader("x-request-lang"))
 	unauthorizedLoc, err := localizer.LocalizeMessage(&i18n.Message{ID: "unauthorized"})
 	if err != nil {
-		gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error", "jwt-validate", err)
+		gin.Options.Log.Error("middleware", err)
+		gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 	expiredLoc, err := localizer.LocalizeMessage(&i18n.Message{ID: "expired"})
 	if err != nil {
-		gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error", "jwt-validate", err)
+		gin.Options.Log.Error("middleware", err)
+		gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
@@ -28,7 +30,8 @@ func (gin *Gin) checkSessionFromJwt(c *g.Context, typ string) {
 	sa := strings.Split(ah, " ")
 	if len(sa) != 2 {
 		err = errors.New("token malformed")
-		gin.ErrorResponse(c, http.StatusUnauthorized, unauthorizedLoc, "jwt-validate", err)
+		gin.Options.Log.Error("middleware", err)
+		gin.ErrorResponse(c, http.StatusUnauthorized, unauthorizedLoc)
 		return
 	}
 	claims, err := gin.Jwt.Validate(sa[1])
@@ -39,12 +42,14 @@ func (gin *Gin) checkSessionFromJwt(c *g.Context, typ string) {
 			status = http.StatusExpectationFailed
 			message = expiredLoc
 		}
-		gin.ErrorResponse(c, status, message, "jwt-validate", err)
+		gin.Options.Log.Error("middleware", err)
+		gin.ErrorResponse(c, status, message)
 		return
 	}
 	if typ != claims.Type {
 		err = errors.New("token type missmatch: " + typ + "><" + claims.Type)
-		gin.ErrorResponse(c, http.StatusUnauthorized, unauthorizedLoc, "jwt-validate", err)
+		gin.Options.Log.Error("middleware", err)
+		gin.ErrorResponse(c, http.StatusUnauthorized, unauthorizedLoc)
 		return
 	}
 

@@ -16,7 +16,10 @@ require (
 	github.com/swaggo/gin-swagger v1.5.1
 	github.com/swaggo/swag v1.8.4
 	github.com/twilio/twilio-go v0.26.0
+	go.elastic.co/apm v1.15.0
+	go.elastic.co/apm/module/apmgin v1.15.0
 	golang.org/x/text v0.3.7
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.28.0
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )

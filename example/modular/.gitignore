@@ -19,6 +19,7 @@
 vendor/
 
 # Custom
+*.log
 cmd/grpc/tmp
 cmd/http/tmp
 key_private.pem

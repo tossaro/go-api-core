@@ -9,6 +9,7 @@ import (
 
 	g "github.com/gin-gonic/gin"
 	pAuth "github.com/tossaro/go-api-core/auth/proto"
+	"go.elastic.co/apm"
 
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"google.golang.org/grpc"
@@ -16,16 +17,21 @@ import (
 )
 
 func (gin *Gin) checkSessionFromGrpc(c *g.Context, typ string) {
+	span, _ := apm.StartSpan(c.Request.Context(), "checkSessionFromGrpc", "custom")
+	defer span.End()
+
 	var err error
 	localizer := i18n.NewLocalizer(gin.Options.I18n, c.GetHeader("x-request-lang"))
 	unauthorizedLoc, err := localizer.LocalizeMessage(&i18n.Message{ID: "unauthorized"})
 	if err != nil {
-		gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error", "jwt-validate", err)
+		gin.Options.Log.Error("middleware", err)
+		gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 	expiredLoc, err := localizer.LocalizeMessage(&i18n.Message{ID: "expired"})
 	if err != nil {
-		gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error", "jwt-validate", err)
+		gin.Options.Log.Error("middleware", err)
+		gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
@@ -33,13 +39,16 @@ func (gin *Gin) checkSessionFromGrpc(c *g.Context, typ string) {
 	sa := strings.Split(ah, " ")
 	if len(sa) != 2 {
 		err = errors.New("token malformed")
-		gin.ErrorResponse(c, http.StatusUnauthorized, unauthorizedLoc, "http-auth", err)
+		gin.Options.Log.Error("middleware", err)
+		gin.ErrorResponse(c, http.StatusUnauthorized, unauthorizedLoc)
 		return
 	}
 
 	conn, err := grpc.Dial(*gin.Options.AuthService, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		gin.Options.Log.Error("Gin init auth error: %s", err)
+		gin.Options.Log.Error("midleware", err)
+		gin.ErrorResponse(c, http.StatusUnauthorized, unauthorizedLoc)
+		return
 	}
 	defer conn.Close()
 
@@ -55,7 +64,8 @@ func (gin *Gin) checkSessionFromGrpc(c *g.Context, typ string) {
 			status = http.StatusExpectationFailed
 			message = expiredLoc
 		}
-		gin.ErrorResponse(c, status, message, "jwt-validate", err)
+		gin.Options.Log.Error("midleware", err)
+		gin.ErrorResponse(c, status, message)
 		return
 	}
 

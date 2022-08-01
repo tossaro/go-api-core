@@ -86,7 +86,10 @@ func NewClusterRedis(o *Options) Cacher {
 }
 
 func (r ClusterRedis) Set(k string, p string, v interface{}, d time.Duration) error {
-	r.Cache.Del(k + ":" + p)
+	err := r.Delete(k, p)
+	if err != nil {
+		return err
+	}
 	if d != 0*time.Second {
 		_, err := r.Cache.SetNX(k+":"+p, v, d).Result()
 		if err != nil {
@@ -118,14 +121,17 @@ func (r ClusterRedis) Get(k string, p string) (v string, err error) {
 
 func (r ClusterRedis) Ttl(k string, p string) (t time.Duration, err error) {
 	if cmd := r.Cache.TTL(k + ":" + p); cmd.Err() != nil {
-		return t, err
+		return t, cmd.Err()
 	} else {
 		return cmd.Val(), nil
 	}
 }
 
 func (r Redis) Set(k string, p string, v interface{}, d time.Duration) error {
-	r.Cache.Del(k + ":" + p)
+	err := r.Delete(k, p)
+	if err != nil {
+		return err
+	}
 	if d != 0*time.Second {
 		_, err := r.Cache.SetNX(k+":"+p, v, d).Result()
 		if err != nil {

@@ -14,7 +14,7 @@ const (
 	LogTypeFile   = "file"
 
 	_defaultEnvPath       = "./.env"
-	_defaultLogFileName   = "core.log"
+	_defaultLogFileName   = "./logs/core.log"
 	_defaultLogMaxSize    = 100 //mb
 	_defaultLogMaxAge     = 10  //day
 	_defaultLogMaxBackups = 10  //file

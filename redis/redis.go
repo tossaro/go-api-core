@@ -41,7 +41,7 @@ const (
 
 func config(c *Options) *Options {
 	if len(c.Addrs) < 1 {
-		log.Fatal("redis - address is empty")
+		log.Fatal("redis - option Addrs is not provided")
 	}
 	if c.PoolSize == nil {
 		poolSize := _defaultPoolSize
@@ -51,7 +51,7 @@ func config(c *Options) *Options {
 		minIdleConn := _defaultMinIdleConn
 		c.MinIdleConn = &minIdleConn
 	}
-	if c.PoolTimeout != nil {
+	if c.PoolTimeout == nil {
 		poolTimeout := _defaultPoolTimeout
 		c.PoolTimeout = &poolTimeout
 	}

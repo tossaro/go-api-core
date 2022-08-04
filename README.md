@@ -33,9 +33,12 @@ privateKeyPath := "./key_private.pem"
 publicKeyPath := "./key_public.pem"
 core.NewHttp(core.Options{
     EnvPath:        "./.env",
+    AuthType:       gin.AuthTypeJwt,
+    // if AuthTypeJwt is AuthTypeJwt
     PrivateKeyPath: &privateKeyPath,
     PublicKeyPath:  &publicKeyPath,
-    AuthType:       gin.AuthTypeJwt,
+    // if AuthType type is AuthTypeGrpc
+    // AuthUrl         localhost:50051
     I18n:           bI18n,
     Captcha:        &captcha,
     Modules:        []func(...interface{}){module1.NewHttpV1},
@@ -67,9 +70,9 @@ g := gin.New(&gin.Options{
     BaseUrl:  cfg.App.Name,
     Log:      log,
     AuthType: gin.AuthTypeJwt,
-    // if auth type jwt
+    // if AuthType type is AuthTypeJwt
     Jwt: jwt,
-    // if auth type grpc
+    // if AuthType type is AuthTypeGrpc
     // AuthService:  &cfg.Services[0].Url,
     Captcha: &captcha,
 })
@@ -82,7 +85,7 @@ g := gin.New(&gin.Options{
 - [JWT RSA](https://github.com/tossaro/go-api-core/blob/main/jwt/jwt.go)
 - [Logger](https://github.com/tossaro/go-api-core/blob/main/logger/logger.go)
 - [Postgres](https://github.com/tossaro/go-api-core/blob/main/postgres/postgres.go)
-- [Twilio](https://github.com/tossaro/go-api-core/blob/main/twilio/twilio.go)
+- [Redis Cacher](https://github.com/tossaro/go-api-core/blob/main/redis/redis.go)
 - [Captcha](https://github.com/tossaro/go-api-core/blob/main/captcha/http.go)
 
 ## The MIT License (MIT)

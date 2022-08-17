@@ -133,23 +133,23 @@ func (gin *Gin) ErrorResponse(c *g.Context, code int, msg string) {
 	c.AbortWithStatusJSON(code, &Error{msg})
 }
 
-func (gin *Gin) AuthAccessMiddleware() g.HandlerFunc {
-	return gin.authCheck("access")
+func (gin *Gin) AuthAccessMiddleware(rid []int32) g.HandlerFunc {
+	return gin.authCheck("access", rid)
 }
 
 func (gin *Gin) AuthRefreshMiddleware() g.HandlerFunc {
-	return gin.authCheck("refresh")
+	return gin.authCheck("refresh", []int32{})
 }
 
-func (gin *Gin) authCheck(typ string) g.HandlerFunc {
+func (gin *Gin) authCheck(typ string, rid []int32) g.HandlerFunc {
 	return func(c *g.Context) {
 		switch gin.Options.AuthType {
 		case AuthTypeGrpc:
-			gin.checkSessionFromGrpc(c, typ)
+			gin.checkSessionFromGrpc(c, typ, rid)
 		case AuthTypeJwt:
-			gin.checkSessionFromJwt(c, typ)
+			gin.checkSessionFromJwt(c, typ, rid)
 		default:
-			gin.checkSessionFromGrpc(c, typ)
+			gin.checkSessionFromGrpc(c, typ, rid)
 		}
 	}
 }

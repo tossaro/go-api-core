@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	g "github.com/gin-gonic/gin"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 )
 
-func (gin *Gin) checkSessionFromJwt(c *g.Context, typ string) {
+func (gin *Gin) checkSessionFromJwt(c *g.Context, typ string, rid []int32) {
 	var err error
 	localizer := i18n.NewLocalizer(gin.Options.I18n, c.GetHeader("x-request-lang"))
 	unauthorizedLoc, err := localizer.LocalizeMessage(&i18n.Message{ID: "unauthorized"})
@@ -51,6 +52,26 @@ func (gin *Gin) checkSessionFromJwt(c *g.Context, typ string) {
 		gin.Options.Log.Error("middleware", err)
 		gin.ErrorResponse(c, http.StatusUnauthorized, unauthorizedLoc)
 		return
+	}
+	if len(rid) != 0 {
+		var allow bool
+		for _, r := range rid {
+			if r == claims.RoleId {
+				allow = true
+			}
+		}
+		if !allow {
+			forbiddenLoc, errL := localizer.LocalizeMessage(&i18n.Message{ID: "forbidden"})
+			if errL != nil {
+				gin.Log.Error("middleware", errL)
+				gin.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
+				return
+			}
+			err := errors.New(strconv.FormatUint(claims.UID, 10) + " forbidden access")
+			gin.Log.Error("middleware", err)
+			gin.ErrorResponse(c, http.StatusForbidden, forbiddenLoc)
+			return
+		}
 	}
 
 	ctx := context.WithValue(c.Request.Context(), CKey("user_id"), claims.UID)

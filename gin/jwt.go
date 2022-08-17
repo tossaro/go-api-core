@@ -54,6 +54,7 @@ func (gin *Gin) checkSessionFromJwt(c *g.Context, typ string) {
 	}
 
 	ctx := context.WithValue(c.Request.Context(), CKey("user_id"), claims.UID)
+	ctx = context.WithValue(ctx, CKey("user_role_id"), claims.RoleId)
 	if typ == "refresh" && claims.Key != nil {
 		ctx = context.WithValue(ctx, CKey("user_key"), claims.Key)
 	}

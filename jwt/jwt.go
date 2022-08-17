@@ -29,9 +29,10 @@ type (
 	}
 
 	TokenClaimsV1 struct {
-		UID  uint64
-		Type string
-		Key  *string
+		UID    uint64
+		RoleId int32
+		Type   string
+		Key    *string
 		j.RegisteredClaims
 	}
 )
@@ -73,9 +74,10 @@ func NewRSA(o *Options) *Jwt {
 	return &Jwt{vk, ck, o}
 }
 
-func (jwt *Jwt) generateToken(typ string, exp int, uid uint64, key *string, iss string) (string, error) {
+func (jwt *Jwt) generateToken(typ string, exp int, uid uint64, rid int32, key *string, iss string) (string, error) {
 	c := TokenClaimsV1{
 		uid,
+		rid,
 		typ,
 		key,
 		j.RegisteredClaims{
@@ -88,20 +90,20 @@ func (jwt *Jwt) generateToken(typ string, exp int, uid uint64, key *string, iss 
 	return token.SignedString(jwt.PrivateKey)
 }
 
-func (jwt *Jwt) AccessToken(uid uint64, iss string) (*string, error) {
-	tk, err := jwt.generateToken("access", jwt.Options.AccessTokenLifetime, uid, nil, iss)
+func (jwt *Jwt) AccessToken(uid uint64, rid int32, iss string) (*string, error) {
+	tk, err := jwt.generateToken("access", jwt.Options.AccessTokenLifetime, uid, rid, nil, iss)
 	if err != nil {
 		return nil, err
 	}
 	return &tk, nil
 }
 
-func (jwt *Jwt) RefreshToken(uid uint64, iss string) (*string, *string, error) {
+func (jwt *Jwt) RefreshToken(uid uint64, rid int32, iss string) (*string, *string, error) {
 	t := time.Unix(time.Now().UnixNano(), 0).String()
 	s := strconv.FormatUint(uint64(uid), 10) + t
 	k := hmac.New(sha256.New, []byte(s))
 	hk := hex.EncodeToString(k.Sum(nil))
-	tk, err := jwt.generateToken("refresh", jwt.Options.RefreshTokenLifetime, uid, &hk, iss)
+	tk, err := jwt.generateToken("refresh", jwt.Options.RefreshTokenLifetime, uid, rid, &hk, iss)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -121,7 +123,7 @@ func (jwt *Jwt) Validate(t string) (*TokenClaimsV1, error) {
 	}
 
 	claims, ok := token.Claims.(*TokenClaimsV1)
-	if !ok || !token.Valid || claims.UID == 0 {
+	if !ok || !token.Valid || claims.UID == 0 || claims.RoleId == 0 {
 		return nil, fmt.Errorf("invalid token or missing uid")
 	}
 	if claims.Type == "refresh" && claims.Key == nil {

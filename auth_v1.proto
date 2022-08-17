@@ -12,6 +12,7 @@ message CheckReqV1 {
 
 message TokenClaimsV1 {
     uint64 uid = 1;
-    string type = 2;
-    optional string key = 3;
+    int32 rid = 2;
+    string type = 3;
+    optional string key = 4;
 }

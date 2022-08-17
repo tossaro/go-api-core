@@ -9,17 +9,21 @@ import (
 )
 
 const (
-	_defaultPoolMax      = 1
-	_defaultConnAttempts = 10
-	_defaultConnTimeout  = time.Second
+	_defaultPoolMax          = 1
+	_defaultConnAttempts     = 10
+	_defaultConnTimeout      = time.Second
+	_defaultMigrationsFolder = "migrations"
+	_defaultSeedsFolder      = "seeds"
 )
 
 type (
 	Options struct {
-		Url          string
-		PoolMax      *int
-		ConnAttempts *int
-		ConnTimeout  *time.Duration
+		Url              string
+		PoolMax          *int
+		ConnAttempts     *int
+		ConnTimeout      *time.Duration
+		MigrationsFolder *string
+		SeedsFolder      *string
 	}
 
 	Postgres struct {
@@ -53,6 +57,16 @@ func New(o *Options) *Postgres {
 		cTm = *(o.ConnTimeout)
 	}
 
+	mF := _defaultMigrationsFolder
+	if o.MigrationsFolder != nil {
+		mF = *(o.MigrationsFolder)
+	}
+
+	sF := _defaultSeedsFolder
+	if o.SeedsFolder != nil {
+		sF = *(o.SeedsFolder)
+	}
+
 	var p *pgxpool.Pool
 	for cAt > 0 {
 		p, err = pgxpool.ConnectConfig(context.Background(), poolConfig)
@@ -68,7 +82,8 @@ func New(o *Options) *Postgres {
 		log.Fatal("postgres - connection error: %w", err)
 	}
 
-	migrate(o.Url + "?sslmode=disable")
+	migrate(o.Url+"?sslmode=disable", mF)
+	seeder(p, sF)
 
 	return &Postgres{p}
 }

@@ -16,7 +16,7 @@ const (
 	_defaultTimeout  = time.Second
 )
 
-func migrate(url string) {
+func migrate(url string, f string) {
 	var (
 		attempts = _defaultAttempts
 		err      error
@@ -24,7 +24,7 @@ func migrate(url string) {
 	)
 
 	for attempts > 0 {
-		m, err = gMigrate.New("file://migrations", url)
+		m, err = gMigrate.New("file://"+f, url)
 		if err == nil {
 			break
 		}

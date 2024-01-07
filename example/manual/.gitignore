@@ -22,5 +22,3 @@ vendor/
 *.log
 cmd/grpc/tmp
 cmd/http/tmp
-key_private.pem
-key_public.pem

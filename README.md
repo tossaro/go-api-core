@@ -5,6 +5,7 @@ Based on common API stack, here is a list of enhanced packages to simplify your 
 ## Contents
  - [Getting started](#getting-started)
  - [Enhanced Packages](#enhanced-packages)
+ - [Commands](#commands)
  - [Example](https://github.com/tossaro/go-api-core/tree/main/example)
 
 ## Getting started
@@ -34,7 +35,7 @@ publicKeyPath := "./key_public.pem"
 core.NewHttp(core.Options{
     EnvPath:        "./.env",
     AuthType:       gin.AuthTypeJwt,
-    // if AuthTypeJwt is AuthTypeJwt
+    // if AuthTypeJwt is AuthTypeJwt you need to generate rsa key
     PrivateKeyPath: &privateKeyPath,
     PublicKeyPath:  &publicKeyPath,
     // if AuthType type is AuthTypeGrpc
@@ -87,6 +88,16 @@ g := gin.New(&gin.Options{
 - [Postgres](https://github.com/tossaro/go-api-core/blob/main/postgres/postgres.go)
 - [Redis Cacher](https://github.com/tossaro/go-api-core/blob/main/redis/redis.go)
 - [Captcha](https://github.com/tossaro/go-api-core/blob/main/captcha/http.go)
+
+## Commands
+
+Here are some useful commands for executing example usage:
+* cd example/manual && go run cmd/http/main.go
+* cd example/manual && go run cmd/grpc/main.go
+* cd example/modular && go run cmd/http/main.go
+* go install github.com/swaggo/swag/cmd/swag@latest
+* cd example/manual/cmd/http && swag init -o ../../docs
+* cd example/modular/cmd/http && swag init -o ../../docs
 
 ## The MIT License (MIT)
 
